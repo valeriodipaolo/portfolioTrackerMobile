@@ -119,7 +119,7 @@ function loadAll(extra){
   var ax=Object.keys(set).sort().slice(-253);
   function al(m){var out=[],l=null;ax.forEach(function(d){if(m[d]!=null)l=m[d];out.push(l)});var f=out.find(function(v){return v!=null});return out.map(function(v){return v==null?f:v})}
   var nc={};
-  var fx={};cl.forEach(function(u,i){var f=F[i],ks=Object.keys(f.c).sort();if(f.last)f.c[ks[ks.length-1]]=f.last;fx[u]=al(f.c)});
+  var fx={};cl.forEach(function(u,i){var f=F[i],ks=Object.keys(f.c).sort();if(f.last)f.c[ks[ks.length-1]]=f.last;fx[u]=al(f.c);if(f.last)fx[u][fx[u].length-1]=f.last});
   function toE(arr,c){var u=cur(c);if(u==="EUR")return arr;var k=kf(c);return arr.map(function(v,i){return v*k/fx[u][i]})}
   syms.forEach(function(s,i){var r=R[i],ks=Object.keys(r.c).sort();if(r.last)r.c[ks[ks.length-1]]=r.last;nc[s]=toE(al(r.c),r.cur)});
   bk.forEach(function(k,i){var r=R[syms.length+i];nc[k]=toE(al(r.a),r.cur)});
