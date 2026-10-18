@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Portafoglio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f2f5f8;--surf:#fff;--ink:#14213d;--mut:#667389;--line:#dde3ea;--pf:#0b5fd6;--bm:#d98200;--up:#0f8a5f;--dn:#c93a3a;--sel:#14213d;--selt:#fff;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1520;--surf:#152131;--ink:#e8eef6;--mut:#8b9ab0;--line:#24344a;--pf:#5aa2ff;--bm:#f0a63a;--up:#3ccf93;--dn:#ff7676;--sel:#e8eef6;--selt:#0d1520;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0d1520;--surf:#152131;--ink:#e8eef6;--mut:#8b9ab0;--line:#24344a;--pf:#5aa2ff;--bm:#f0a63a;--up:#3ccf93;--dn:#ff7676;--sel:#e8eef6;--selt:#0d1520;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Instrument Sans",system-ui,sans-serif;font-variant-numeric:tabular-nums;line-height:1.4}
+main{max-width:480px;margin:0 auto;padding:16px 16px 40px}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+h1{font-size:1.1rem;margin:0;font-weight:600}
+.badge{font-size:.75rem;color:var(--bm);border:1px solid var(--bm);border-radius:99px;padding:2px 10px}
+.hero p{margin:0;color:var(--mut);font-size:.9rem}
+.delta{font-size:3rem;font-weight:700;letter-spacing:-.03em;line-height:1.05;margin:2px 0}
+.up{color:var(--up)}.dn{color:var(--dn)}
+.row{display:flex;gap:8px;overflow-x:auto;padding:12px 0 4px;scrollbar-width:none}
+.row::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--surf);color:var(--ink);font:inherit;font-size:.85rem;padding:7px 13px;border-radius:99px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--sel);color:var(--selt);border-color:var(--sel)}
+.chip:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--pf);outline-offset:2px}
+.card{background:var(--surf);border:1px solid var(--line);border-radius:14px;padding:12px;margin-top:12px}
+svg{width:100%;height:auto;display:block}
+.leg{display:flex;justify-content:space-between;font-size:.85rem;margin-top:8px}
+.leg span::before{content:"";display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle;background:var(--c)}
+.tot{display:flex;justify-content:space-between;align-items:baseline}
+.tot b{font-size:1.5rem;font-weight:600}
+.pos{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.pos:first-of-type{border-top:0}
+.pos small{color:var(--mut);display:block}
+.pos .r{text-align:right}
+.x{border:0;background:none;color:var(--mut);font-size:1.2rem;cursor:pointer;padding:4px 8px}
+h2{font-size:.95rem;margin:0 0 4px;font-weight:600}
+.add{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:8px;margin-top:8px}
+input{font:inherit;font-size:16px;padding:9px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);width:100%}
+.btn{grid-column:1/-1;border:0;background:var(--pf);color:var(--bg);font:inherit;font-weight:600;padding:11px;border-radius:10px;cursor:pointer}
+.err{grid-column:1/-1;color:var(--dn);font-size:.85rem;min-height:1em}
+.note{color:var(--mut);font-size:.8rem;margin-top:14px}
+</style>
+</head>
+<body>
+<main>
+<header><h1>Il mio portafoglio</h1><span class="badge" id="bdg">Caricamento…</span></header>
+<section class="hero">
+<p id="hl">Rispetto a S&amp;P 500</p>
+<div class="delta" id="delta">–</div>
+<p id="sub"></p>
+</section>
+<div class="row" id="bms" role="group" aria-label="Benchmark"></div>
+<div class="row" id="pds" role="group" aria-label="Periodo"></div>
+<div class="card">
+<svg id="ch" viewBox="0 0 340 190" role="img" aria-label="Grafico del portafoglio e del benchmark in base 100"></svg>
+<div class="leg"><span style="--c:var(--pf)" id="lp"></span><span style="--c:var(--bm)" id="lb"></span></div>
+</div>
+<div class="card">
+<div class="tot"><span>Valore</span><b id="val"></b></div>
+<div class="tot"><span id="dayl">Oggi</span><span id="day"></span></div>
+<div class="tot"><span>Da inizio posizione</span><span id="gain"></span></div>
+</div>
+<div class="card">
+<h2>Posizioni</h2>
+<div id="list"></div>
+<div class="add">
+<input id="s" placeholder="Ticker" autocapitalize="characters" aria-label="Ticker">
+<input id="q" placeholder="Quantità" inputmode="decimal" aria-label="Quantità">
+<input id="c" placeholder="Prezzo carico" inputmode="decimal" aria-label="Prezzo di carico">
+<div class="err" id="err" role="alert"></div>
+<button class="btn" id="addb">Aggiungi posizione</button>
+</div>
+</div>
+<p class="note" id="nt"></p>
+</main>
+<script>
+var BMS={SPX:{n:"S&P 500",b:1,mu:.0004,sg:.004,a:5900},NDX:{n:"Nasdaq 100",b:1.25,mu:.0006,sg:.006,a:20500},MSCI:{n:"MSCI World",b:.9,mu:.0003,sg:.003,a:3800},FTSE:{n:"FTSE All-World",b:.9,mu:.0003,sg:.0035,a:480}};
+var PDS=[["1M",21],["3M",63],["6M",126],["1A",252]];
+var ANCH={AAPL:230,MSFT:420,NVDA:140,"VWCE.DE":130,"IWDA.AS":105,TSLA:250};
+var N=253,state={pos:[{s:"AAPL",q:10,c:150},{s:"MSFT",q:5,c:300},{s:"VWCE.DE",q:20,c:105}],bm:"SPX",pd:126};
+try{var sv=JSON.parse(localStorage.getItem("pf1")||"null");if(sv&&sv.pos)state=sv}catch(e){}
+function save(){try{localStorage.setItem("pf1",JSON.stringify(state))}catch(e){}}
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;var t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function gauss(r){return Math.sqrt(-2*Math.log(r()+1e-9))*Math.cos(6.2832*r())}
+function hash(s){var h=7;for(var i=0;i<s.length;i++)h=Math.imul(h,31)+s.charCodeAt(i)|0;return h}
+var mk=(function(){var r=rng(42),a=[];for(var i=0;i<N;i++)a.push(gauss(r));return a})();
+var cache={};
+function gen(key,mu,sg,beta,anchor){
+ if(cache[key])return cache[key];
+ var r=rng(hash(key)),p=[100];
+ for(var i=1;i<N;i++)p.push(p[i-1]*(1+mu+beta*.009*mk[i]+sg*gauss(r)));
+ var k=anchor/p[N-1];p=p.map(function(x){return x*k});cache[key]=p;return p}
+function serie(s){var a=ANCH[s]||60+rng(hash(s))()*240;return gen(s,.0004,.011,1.05,a)}
+function bser(k){var b=BMS[k];return gen(k,b.mu,b.sg,b.b,b.a)}
+var live={};
+var REAL=false,YB={SPX:"^GSPC",NDX:"^NDX",MSCI:"IWDA.AS",FTSE:"VWCE.DE"};
+function yf(sym){
+ return fetch("https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(sym)+"?range=1y&interval=1d",{headers:{"User-Agent":"Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/124 Mobile Safari/537.36"}}).then(function(r){
+  if(!r.ok)throw new Error(sym);return r.json()}).then(function(j){
+  var x=j.chart.result[0],q=x.indicators.quote[0].close,ad=(x.indicators.adjclose&&x.indicators.adjclose[0].adjclose)||q,c={},a={};
+  x.timestamp.forEach(function(t,i){if(q[i]==null)return;var d=new Date(t*1000).toISOString().slice(0,10);c[d]=q[i];a[d]=ad[i]==null?q[i]:ad[i]});
+  return{c:c,a:a,last:x.meta.regularMarketPrice}})}
+function loadAll(extra){
+ var syms=state.pos.map(function(o){return o.s});if(extra)syms.push(extra);
+ syms=syms.filter(function(s,i){return syms.indexOf(s)===i});
+ var bk=Object.keys(YB),jobs=syms.concat(bk.map(function(k){return YB[k]}));
+ return Promise.all(jobs.map(yf)).then(function(R){
+  var set={};R.forEach(function(r){Object.keys(r.c).forEach(function(d){set[d]=1})});
+  var ax=Object.keys(set).sort().slice(-253);
+  function al(m){var out=[],l=null;ax.forEach(function(d){if(m[d]!=null)l=m[d];out.push(l)});var f=out.find(function(v){return v!=null});return out.map(function(v){return v==null?f:v})}
+  var nc={};
+  syms.forEach(function(s,i){var r=R[i],ks=Object.keys(r.c).sort();if(r.last)r.c[ks[ks.length-1]]=r.last;nc[s]=al(r.c)});
+  bk.forEach(function(k,i){nc[k]=al(R[syms.length+i].a)});
+  cache=nc;N=ax.length;REAL=true})}
+function price(s,i){var p=serie(s);return i===N-1&&!REAL?p[i]*(1+(live[s]||0)):p[i]}
+function fmt(x,d){return x.toLocaleString("it-IT",{minimumFractionDigits:d,maximumFractionDigits:d})}
+function pct(x){return(x>=0?"+":"−")+fmt(Math.abs(x),2)+"%"}
+function eur(x){return fmt(x,2)+" €"}
+function cls(x){return x>=0?"up":"dn"}
+function render(){
+ var P=state.pd,st=Math.max(0,N-1-P),ptf=[],i;
+ for(i=st;i<N;i++){var v=0;state.pos.forEach(function(o){v+=o.q*price(o.s,i)});ptf.push(v)}
+ var bm=bser(state.bm).slice(st);
+ var pn=ptf.map(function(x){return x/ptf[0]*100}),bn=bm.map(function(x){return x/bm[0]*100});
+ var rp=pn[pn.length-1]-100,rb=bn[bn.length-1]-100,d=rp-rb;
+ document.getElementById("hl").textContent="Rispetto a "+BMS[state.bm].n;
+ var de=document.getElementById("delta");de.textContent=(d>=0?"+":"−")+fmt(Math.abs(d),2)+" pt";de.className="delta "+cls(d);
+ document.getElementById("sub").textContent=d>=0?"Stai battendo il benchmark nel periodo.":"Il benchmark sta facendo meglio di te nel periodo.";
+ document.getElementById("lp").textContent="Portafoglio "+pct(rp);
+ document.getElementById("lb").textContent=BMS[state.bm].n+" "+pct(rb);
+ chart(pn,bn);
+ var tv=ptf[ptf.length-1],prev=0,cost=0;
+ state.pos.forEach(function(o){prev+=o.q*price(o.s,N-2);cost+=o.q*o.c});
+ var dd=tv-prev,g=tv-cost;
+ document.getElementById("val").textContent=eur(tv);
+ var de2=document.getElementById("day");de2.textContent=(dd>=0?"+":"−")+eur(Math.abs(dd))+" ("+pct(prev?dd/prev*100:0)+")";de2.className=cls(dd);
+ var ge=document.getElementById("gain");ge.textContent=(g>=0?"+":"−")+eur(Math.abs(g))+" ("+pct(cost?g/cost*100:0)+")";ge.className=cls(g);
+ var h="";
+ state.pos.forEach(function(o,k){var p=price(o.s,N-1),gl=(p/o.c-1)*100;
+  h+='<div class="pos"><div><b>'+o.s+'</b><small>'+fmt(o.q,2)+' × '+eur(p)+'</small></div><div class="r"><b>'+eur(o.q*p)+'</b><small class="'+cls(gl)+'">'+pct(gl)+'</small></div><button class="x" data-k="'+k+'" aria-label="Rimuovi '+o.s+'">×</button></div>'});
+ document.getElementById("list").innerHTML=h||'<p class="note">Nessuna posizione. Aggiungi la prima qui sotto.</p>';
+}
+function chart(a,b){
+ var W=340,H=190,L=8,R=8,T=10,B=10,all=a.concat(b,[100]),mn=Math.min.apply(0,all),mx=Math.max.apply(0,all),pad=(mx-mn)*.08||1;mn-=pad;mx+=pad;
+ function X(i){return L+i*(W-L-R)/(a.length-1)}
+ function Y(v){return T+(mx-v)*(H-T-B)/(mx-mn)}
+ function path(s){return s.map(function(v,i){return(i?"L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1)}).join("")}
+ var area=path(a)+"L"+X(a.length-1)+" "+(H-B)+"L"+X(0)+" "+(H-B)+"Z";
+ document.getElementById("ch").innerHTML=
+ '<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--pf)" stop-opacity=".22"/><stop offset="1" stop-color="var(--pf)" stop-opacity="0"/></linearGradient></defs>'+
+ '<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(100)+'" y2="'+Y(100)+'" stroke="var(--line)" stroke-dasharray="3 4"/>'+
+ '<path d="'+area+'" fill="url(#g)"/>'+
+ '<path d="'+path(b)+'" fill="none" stroke="var(--bm)" stroke-width="2" stroke-linejoin="round"/>'+
+ '<path d="'+path(a)+'" fill="none" stroke="var(--pf)" stroke-width="2.5" stroke-linejoin="round"/>'+
+ '<text x="'+L+'" y="'+(Y(100)-4)+'" font-size="10" fill="var(--mut)">100</text>';
+}
+function chips(id,items,cur,fn){
+ var el=document.getElementById(id);el.innerHTML="";
+ items.forEach(function(it){var b=document.createElement("button");b.className="chip";b.textContent=it[1];b.setAttribute("aria-pressed",it[0]===cur);b.onclick=function(){fn(it[0]);save();draw()};el.appendChild(b)})}
+function draw(){
+ chips("bms",Object.keys(BMS).map(function(k){return[k,BMS[k].n]}),state.bm,function(k){state.bm=k});
+ chips("pds",PDS.map(function(p){return[p[1],p[0]]}),state.pd,function(v){state.pd=v});
+ render()}
+document.getElementById("list").onclick=function(e){var k=e.target.getAttribute("data-k");if(k!==null){state.pos.splice(+k,1);save();render()}};
+document.getElementById("addb").onclick=function(){
+ var s=document.getElementById("s").value.trim().toUpperCase(),q=parseFloat(document.getElementById("q").value.replace(",",".")),c=parseFloat(document.getElementById("c").value.replace(",",".")),er=document.getElementById("err");
+ if(!/^[A-Z0-9.^=-]{1,12}$/.test(s)){er.textContent="Inserisci un ticker valido, ad esempio AAPL.";return}
+ if(!(q>0)||!(c>0)){er.textContent="Quantità e prezzo di carico devono essere maggiori di zero.";return}
+ er.textContent="";
+ var ok=function(){state.pos.push({s:s,q:q,c:c});["s","q","c"].forEach(function(i){document.getElementById(i).value=""});save();render()};
+ if(!REAL){ok();return}
+ er.textContent="Verifico il ticker…";
+ loadAll(s).then(function(){er.textContent="";ok()}).catch(function(){er.textContent="Ticker non trovato su Yahoo: "+s+". Esempi: AAPL, ENI.MI, VWCE.DE."})};
+function bdg(){document.getElementById("bdg").textContent=REAL?"Yahoo · ritardo ~15 min":"Dati simulati";
+ document.getElementById("nt").textContent=REAL?"Prezzi da Yahoo Finance, ritardati fino a 15 minuti. S&P 500 e Nasdaq 100 sono indici di prezzo; MSCI World (IWDA.AS) e FTSE All-World (VWCE.DE) sono ETF che replicano l’indice con dividendi reinvestiti. Non c’è conversione di valuta. Il confronto assume le posizioni attuali detenute per tutto il periodo.":"Prezzi generati in modo casuale: Yahoo non è raggiungibile o un ticker non è valido (il browser blocca Yahoo, l’app installata no)."}
+loadAll().catch(function(){REAL=false}).then(function(){bdg();draw();
+ setInterval(function(){if(REAL){loadAll().then(render).catch(function(){})}else{state.pos.forEach(function(o){live[o.s]=(live[o.s]||0)+(Math.random()-.5)*.0016});render()}},REAL?60000:3000)});
+</script>
+</body>
+</html>
