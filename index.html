@@ -103,18 +103,26 @@ function yf(sym){
   if(!r.ok)throw new Error(sym);return r.json()}).then(function(j){
   var x=j.chart.result[0],q=x.indicators.quote[0].close,ad=(x.indicators.adjclose&&x.indicators.adjclose[0].adjclose)||q,c={},a={};
   x.timestamp.forEach(function(t,i){if(q[i]==null)return;var d=new Date(t*1000).toISOString().slice(0,10);c[d]=q[i];a[d]=ad[i]==null?q[i]:ad[i]});
-  return{c:c,a:a,last:x.meta.regularMarketPrice}})}
+  return{c:c,a:a,last:x.meta.regularMarketPrice,cur:x.meta.currency}})}
+function cur(c){return c==="GBp"||c==="GBX"?"GBP":c}
+function kf(c){return c==="GBp"||c==="GBX"?.01:1}
 function loadAll(extra){
  var syms=state.pos.map(function(o){return o.s});if(extra)syms.push(extra);
  syms=syms.filter(function(s,i){return syms.indexOf(s)===i});
  var bk=Object.keys(YB),jobs=syms.concat(bk.map(function(k){return YB[k]}));
  return Promise.all(jobs.map(yf)).then(function(R){
+  var cs={};R.forEach(function(r){var u=cur(r.cur);if(u!=="EUR")cs[u]=1});
+  var cl=Object.keys(cs);
+  return Promise.all(cl.map(function(u){return yf("EUR"+u+"=X")})).then(function(F){return[R,cl,F]})
+ }).then(function(z){var R=z[0],cl=z[1],F=z[2];
   var set={};R.forEach(function(r){Object.keys(r.c).forEach(function(d){set[d]=1})});
   var ax=Object.keys(set).sort().slice(-253);
   function al(m){var out=[],l=null;ax.forEach(function(d){if(m[d]!=null)l=m[d];out.push(l)});var f=out.find(function(v){return v!=null});return out.map(function(v){return v==null?f:v})}
   var nc={};
-  syms.forEach(function(s,i){var r=R[i],ks=Object.keys(r.c).sort();if(r.last)r.c[ks[ks.length-1]]=r.last;nc[s]=al(r.c)});
-  bk.forEach(function(k,i){nc[k]=al(R[syms.length+i].a)});
+  var fx={};cl.forEach(function(u,i){var f=F[i],ks=Object.keys(f.c).sort();if(f.last)f.c[ks[ks.length-1]]=f.last;fx[u]=al(f.c)});
+  function toE(arr,c){var u=cur(c);if(u==="EUR")return arr;var k=kf(c);return arr.map(function(v,i){return v*k/fx[u][i]})}
+  syms.forEach(function(s,i){var r=R[i],ks=Object.keys(r.c).sort();if(r.last)r.c[ks[ks.length-1]]=r.last;nc[s]=toE(al(r.c),r.cur)});
+  bk.forEach(function(k,i){var r=R[syms.length+i];nc[k]=toE(al(r.a),r.cur)});
   cache=nc;N=ax.length;REAL=true})}
 function price(s,i){var p=serie(s);return i===N-1&&!REAL?p[i]*(1+(live[s]||0)):p[i]}
 function fmt(x,d){return x.toLocaleString("it-IT",{minimumFractionDigits:d,maximumFractionDigits:d})}
@@ -176,7 +184,7 @@ document.getElementById("addb").onclick=function(){
  er.textContent="Verifico il ticker…";
  loadAll(s).then(function(){er.textContent="";ok()}).catch(function(){er.textContent="Ticker non trovato su Yahoo: "+s+". Esempi: AAPL, ENI.MI, VWCE.DE."})};
 function bdg(){document.getElementById("bdg").textContent=REAL?"Yahoo · ritardo ~15 min":"Dati simulati";
- document.getElementById("nt").textContent=REAL?"Prezzi da Yahoo Finance, ritardati fino a 15 minuti. S&P 500 e Nasdaq 100 sono indici di prezzo; MSCI World (IWDA.AS) e FTSE All-World (VWCE.DE) sono ETF che replicano l’indice con dividendi reinvestiti. Non c’è conversione di valuta. Il confronto assume le posizioni attuali detenute per tutto il periodo.":"Prezzi generati in modo casuale: Yahoo non è raggiungibile o un ticker non è valido (il browser blocca Yahoo, l’app installata no)."}
+ document.getElementById("nt").textContent=REAL?"Prezzi da Yahoo Finance, ritardati fino a 15 minuti. S&P 500 e Nasdaq 100 sono indici di prezzo; MSCI World (IWDA.AS) e FTSE All-World (VWCE.DE) sono ETF che replicano l’indice con dividendi reinvestiti. Tutto è convertito in euro con il cambio giornaliero di Yahoo, compresi S&P 500 e Nasdaq 100; i prezzi di carico vanno inseriti in euro. Il confronto assume le posizioni attuali detenute per tutto il periodo.":"Prezzi generati in modo casuale: Yahoo non è raggiungibile o un ticker non è valido (il browser blocca Yahoo, l’app installata no)."}
 loadAll().catch(function(){REAL=false}).then(function(){bdg();draw();
  setInterval(function(){if(REAL){loadAll().then(render).catch(function(){})}else{state.pos.forEach(function(o){live[o.s]=(live[o.s]||0)+(Math.random()-.5)*.0016});render()}},REAL?60000:3000)});
 </script>
