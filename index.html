@@ -44,12 +44,12 @@ input{font:inherit;font-size:16px;padding:9px;border:1px solid var(--line);borde
 .err{grid-column:1/-1;color:var(--dn);font-size:.85rem;min-height:1em}
 .note{color:var(--mut);font-size:.8rem;margin-top:14px}
 .z{color:var(--mut)}.seg{display:flex;gap:8px;margin-bottom:12px}.seg .chip{flex:1;text-align:center}.tot b.s{font-size:1.15rem}.pos .up{color:var(--up)}.pos .dn{color:var(--dn)}.pos .z{color:var(--mut)}.pos .r{white-space:nowrap}.pos b{font-size:.95rem}
-.pos.t{grid-template-columns:minmax(0,1fr) auto auto}
-.nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;font-size:.95rem}
+.pos.t{grid-template-columns:minmax(0,1fr) auto;gap:12px}.pos.d{grid-template-columns:minmax(0,1fr) 64px auto;gap:10px}
+.nm{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.25;font-weight:600;font-size:.95rem;word-break:break-word}.id small{white-space:nowrap;margin-top:2px}.sp,.sp svg{display:block;width:64px;height:34px}.pos .r small{font-size:.88rem;font-weight:600}
 .pill{display:inline-block;margin-left:6px;padding:0 8px;border:1px solid var(--line);border-radius:99px;font-size:.78rem;color:var(--ink)}
 .pl{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:0 8px;align-items:baseline}
 .pos .pl small{display:inline}
-.pos.t .r>b{display:block}
+.pos .r>b{display:block}
 </style>
 </head>
 <body>
@@ -113,6 +113,10 @@ function yf(sym){
   var x=j.chart.result[0],q=x.indicators.quote[0].close,ad=(x.indicators.adjclose&&x.indicators.adjclose[0].adjclose)||q,c={},a={};
   x.timestamp.forEach(function(t,i){if(q[i]==null)return;var d=new Date(t*1000).toISOString().slice(0,10);c[d]=q[i];a[d]=ad[i]==null?q[i]:ad[i]});
   return{c:c,a:a,last:x.meta.regularMarketPrice,cur:x.meta.currency,nm:x.meta.longName||x.meta.shortName||""}})}
+function yfi(sym){
+ return fetch("https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(sym)+"?range=1d&interval=5m",{headers:{"User-Agent":"Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/124 Mobile Safari/537.36"}}).then(function(r){if(!r.ok)throw new Error(sym);return r.json()}).then(function(j){
+  var x=j.chart.result[0],q=x.indicators.quote[0].close,p=[];
+  (x.timestamp||[]).forEach(function(t,i){if(q[i]!=null)p.push([t,q[i]])});return p}).catch(function(){return[]})}
 function cur(c){return c==="GBp"||c==="GBX"?"GBP":c}
 function kf(c){return c==="GBp"||c==="GBX"?.01:1}
 function ecb(u){
@@ -127,8 +131,8 @@ function loadAll(extra){
  return Promise.all(jobs.map(yf)).then(function(R){
   var cs={};R.forEach(function(r){var u=cur(r.cur);if(u!=="EUR")cs[u]=1});
   var cl=Object.keys(cs);
-  return Promise.all(cl.map(function(u){return ecb(u).catch(function(){return yf("EUR"+u+"=X")})})).then(function(F){return[R,cl,F]})
- }).then(function(z){var R=z[0],cl=z[1],F=z[2];
+  return Promise.all([Promise.all(cl.map(function(u){return ecb(u).catch(function(){return yf("EUR"+u+"=X")})})),Promise.all(syms.map(yfi))]).then(function(w){return[R,cl,w[0],w[1]]})
+ }).then(function(z){var R=z[0],cl=z[1],F=z[2],IT=z[3];
   var set={};R.forEach(function(r){Object.keys(r.c).forEach(function(d){set[d]=1})});
   var ax=Object.keys(set).sort().slice(-253);
   function al(m){var out=[],l=null;ax.forEach(function(d){if(m[d]!=null)l=m[d];out.push(l)});var f=out.find(function(v){return v!=null});return out.map(function(v){return v==null?f:v})}
@@ -137,13 +141,22 @@ function loadAll(extra){
   function toE(arr,c){var u=cur(c);if(u==="EUR")return arr;var k=kf(c);return arr.map(function(v,i){return v*k/fx[u][i]})}
   var ni={};
   syms.forEach(function(s,i){var r=R[i],ks=Object.keys(r.c).sort(),ln=ks.length,cu=r.last||r.c[ks[ln-1]],pd=ks[ln-2],pr=r.c[pd]||cu,u=cur(r.cur),k=kf(r.cur),ix=ax.indexOf(pd),fp=(u==="EUR")?1:fx[u][ix<0?ax.length-1:ix];
-   ni[s]={nat:cu,cs:SY[r.cur]||r.cur,pct:(cu/pr-1)*100,pe:pr*k/fp,name:r.nm||s}});
+   ni[s]={nat:cu,cs:SY[r.cur]||r.cur,pct:(cu/pr-1)*100,pe:pr*k/fp,name:r.nm||s,sp:IT[i]||[],base:pr}});
   syms.forEach(function(s,i){var r=R[i],ks=Object.keys(r.c).sort();if(r.last)r.c[ks[ks.length-1]]=r.last;nc[s]=toE(al(r.c),r.cur)});
   bk.forEach(function(k,i){var r=R[syms.length+i];nc[k]=toE(al(r.a),r.cur)});
   cache=nc;INFO=ni;N=ax.length;REAL=true})}
 function price(s,i){var p=serie(s);return i===N-1&&!REAL?p[i]*(1+(live[s]||0)):p[i]}
 function grp(s){return s.replace(/\B(?=(\d{3})+(?!\d))/g,".")}
 function fmt(x,d){var n=Math.abs(x).toFixed(d).split(".");return(x<0&&+n.join(".")!==0?"−":"")+grp(n[0])+(n[1]?","+n[1]:"")}
+function spark(p,b,c){
+ if(!p||p.length<2)return"";
+ var W=64,H=34,t0=p[0][0],t1=p[p.length-1][0],mn=b,mx=b;
+ p.forEach(function(q){if(q[1]<mn)mn=q[1];if(q[1]>mx)mx=q[1]});
+ var pd=(mx-mn)*.1||1;mn-=pd;mx+=pd;
+ function X(t){return(t-t0)/((t1-t0)||1)*W}
+ function Y(v){return 2+(mx-v)/(mx-mn)*(H-4)}
+ var d=p.map(function(q,i){return(i?"L":"M")+X(q[0]).toFixed(1)+" "+Y(q[1]).toFixed(1)}).join(""),col=c==="up"?"var(--up)":c==="dn"?"var(--dn)":"var(--mut)",yb=Y(b).toFixed(1);
+ return'<svg viewBox="0 0 '+W+' '+H+'" aria-hidden="true"><line x1="0" x2="'+W+'" y1="'+yb+'" y2="'+yb+'" stroke="var(--mut)" stroke-width="1" stroke-dasharray="2 2"/><path d="'+d+'L'+W+' '+yb+'L0 '+yb+'Z" fill="'+col+'" fill-opacity=".18"/><path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="1.5" stroke-linejoin="round"/></svg>'}
 function qf(q){var n=(+q.toFixed(4)).toString().split(".");return grp(n[0])+(n[1]?","+n[1]:"")}
 function esc(t){return String(t).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function num(v){v=v.trim();if(v.indexOf(",")>=0)v=v.replace(/\./g,"").replace(",",".");return parseFloat(v)}
@@ -152,7 +165,7 @@ function pct(x){return sgn(x)+fmt(Math.abs(x),2)+"%"}
 function eur(x){return fmt(x,2)+" €"}
 function cls(x){var r=Math.round(x*100);return r>0?"up":r<0?"dn":"z"}
 var INFO={},SY={USD:"$",EUR:"€",GBP:"£",GBp:"p",GBX:"p"};
-function pi(s){var i=INFO[s];if(REAL&&i)return i;var a=price(s,N-1),b=price(s,N-2);return{nat:a,cs:"€",pct:(a/b-1)*100,pe:b,name:s}}
+function pi(s){var i=INFO[s];if(REAL&&i)return i;var a=price(s,N-1),b=price(s,N-2);return{nat:a,cs:"€",pct:(a/b-1)*100,pe:b,name:s,sp:[],base:0}}
 function render(){
  var P=state.pd,st=Math.max(0,N-1-P),ptf=[],i;
  for(i=st;i<N;i++){var v=0;state.pos.forEach(function(o){v+=o.q*price(o.s,i)});ptf.push(v)}
@@ -167,7 +180,7 @@ function render(){
  chart(pn,bn);
  var tv=ptf[ptf.length-1],pv=0,cost=0,dayPL=0,V=state.view==="t";
  var rows=state.pos.map(function(o){var p=price(o.s,N-1),i=pi(o.s),v=o.q*p,c=o.q*o.c,d=o.q*(p-i.pe);pv+=o.q*i.pe;cost+=c;dayPL+=d;
-  return{s:o.s,nm:i.name||o.s,q:o.q,v:v,nat:i.nat,cs:i.cs,dp:i.pct,dpl:d,tpl:v-c,tp:c?(v/c-1)*100:0}});
+  return{s:o.s,nm:i.name||o.s,sp:i.sp,bs:i.base,q:o.q,v:v,nat:i.nat,cs:i.cs,dp:i.pct,dpl:d,tpl:v-c,tp:c?(v/c-1)*100:0}});
  var pl=V?tv-cost:dayPL,pp=V?(cost?(tv/cost-1)*100:0):(pv?dayPL/pv*100:0);
  document.getElementById("val").textContent=eur(tv);
  var sa=document.getElementById("spl"),sb=document.getElementById("spp");
@@ -175,9 +188,11 @@ function render(){
  sb.textContent=pct(pp);sb.className="s "+cls(pp);
  document.getElementById("hdr").textContent=V?"Posizioni · totale":"Posizioni · oggi";
  var h="";
- rows.forEach(function(r,k){var x=V?r.tpl:r.dpl,y=V?r.tp:r.dp,bt='<button class="x" data-k="'+k+'" aria-label="Rimuovi '+esc(r.s)+'">×</button>',pc='<small class="'+cls(y)+'">'+pct(y)+'</small>',pb='<b class="'+cls(x)+'">'+sgn(x)+eur(Math.abs(x))+'</b>';
-  if(V)h+='<div class="pos t"><div><div class="nm">'+esc(r.nm)+'</div><small>'+esc(r.s)+'<span class="pill">x'+qf(r.q)+'</span></small></div><div class="r"><b>'+eur(r.v)+'</b><div class="pl">'+pb+pc+'</div></div>'+bt+'</div>';
-  else h+='<div class="pos"><div><b>'+esc(r.s)+'</b></div><div class="r"><b>'+fmt(r.nat,2)+" "+r.cs+'</b></div><div class="r">'+pb+pc+'</div>'+bt+'</div>'});
+ rows.forEach(function(r){var x=V?r.tpl:r.dpl,y=V?r.tp:r.dp,cx=cls(x),cy=cls(y),
+  idc='<div class="id"><div class="nm">'+esc(r.nm)+'</div><small>'+esc(r.s)+(V?'<span class="pill">x'+qf(r.q)+'</span>':'')+'</small></div>',
+  pb='<b class="'+cx+'">'+sgn(x)+eur(Math.abs(x))+'</b>',pc='<small class="'+cy+'">'+pct(y)+'</small>';
+  if(V)h+='<div class="pos t">'+idc+'<div class="r"><b>'+eur(r.v)+'</b>'+pb+pc+'</div></div>';
+  else h+='<div class="pos d">'+idc+'<div class="sp">'+spark(r.sp,r.bs,cy)+'</div><div class="r"><b>'+fmt(r.nat,2)+" "+r.cs+'</b>'+pc+pb+'</div></div>'});
  document.getElementById("list").innerHTML=h||'<p class="note">Nessuna posizione. Aggiungi la prima qui sotto.</p>';
 }
 function chart(a,b){
