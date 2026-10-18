@@ -32,7 +32,7 @@ svg{width:100%;height:auto;display:block}
 .leg span::before{content:"";display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle;background:var(--c)}
 .tot{display:flex;justify-content:space-between;align-items:baseline}
 .tot b{font-size:1.5rem;font-weight:600}
-.pos{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.pos{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:8px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
 .pos:first-of-type{border-top:0}
 .pos small{color:var(--mut);display:block}
 .pos .r{text-align:right}
@@ -43,6 +43,13 @@ input{font:inherit;font-size:16px;padding:9px;border:1px solid var(--line);borde
 .btn{grid-column:1/-1;border:0;background:var(--pf);color:var(--bg);font:inherit;font-weight:600;padding:11px;border-radius:10px;cursor:pointer}
 .err{grid-column:1/-1;color:var(--dn);font-size:.85rem;min-height:1em}
 .note{color:var(--mut);font-size:.8rem;margin-top:14px}
+.z{color:var(--mut)}.seg{display:flex;gap:8px;margin-bottom:12px}.seg .chip{flex:1;text-align:center}.tot b.s{font-size:1.15rem}.pos .up{color:var(--up)}.pos .dn{color:var(--dn)}.pos .z{color:var(--mut)}.pos .r{white-space:nowrap}.pos b{font-size:.95rem}
+.pos.t{grid-template-columns:minmax(0,1fr) auto auto}
+.nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;font-size:.95rem}
+.pill{display:inline-block;margin-left:6px;padding:0 8px;border:1px solid var(--line);border-radius:99px;font-size:.78rem;color:var(--ink)}
+.pl{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:0 8px;align-items:baseline}
+.pos .pl small{display:inline}
+.pos.t .r>b{display:block}
 </style>
 </head>
 <body>
@@ -60,12 +67,13 @@ input{font:inherit;font-size:16px;padding:9px;border:1px solid var(--line);borde
 <div class="leg"><span style="--c:var(--pf)" id="lp"></span><span style="--c:var(--bm)" id="lb"></span></div>
 </div>
 <div class="card">
+<div class="seg" id="vw" role="group" aria-label="Visualizzazione"></div>
 <div class="tot"><span>Valore</span><b id="val"></b></div>
-<div class="tot"><span id="dayl">Oggi</span><span id="day"></span></div>
-<div class="tot"><span>Da inizio posizione</span><span id="gain"></span></div>
+<div class="tot"><span>Profitto/perdita</span><b id="spl" class="s"></b></div>
+<div class="tot"><span>Variazione</span><b id="spp" class="s"></b></div>
 </div>
 <div class="card">
-<h2>Posizioni</h2>
+<h2 id="hdr">Posizioni</h2>
 <div id="list"></div>
 <div class="add">
 <input id="s" placeholder="Ticker" autocapitalize="characters" aria-label="Ticker">
@@ -83,6 +91,7 @@ var PDS=[["1M",21],["3M",63],["6M",126],["1A",252]];
 var ANCH={AAPL:230,MSFT:420,NVDA:140,"VWCE.DE":130,"IWDA.AS":105,TSLA:250};
 var N=253,state={pos:[{s:"AAPL",q:10,c:150},{s:"MSFT",q:5,c:300},{s:"VWCE.DE",q:20,c:105}],bm:"SPX",pd:126};
 try{var sv=JSON.parse(localStorage.getItem("pf1")||"null");if(sv&&sv.pos)state=sv}catch(e){}
+state.view=state.view||"d";
 function save(){try{localStorage.setItem("pf1",JSON.stringify(state))}catch(e){}}
 function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;var t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 function gauss(r){return Math.sqrt(-2*Math.log(r()+1e-9))*Math.cos(6.2832*r())}
@@ -103,7 +112,7 @@ function yf(sym){
   if(!r.ok)throw new Error(sym);return r.json()}).then(function(j){
   var x=j.chart.result[0],q=x.indicators.quote[0].close,ad=(x.indicators.adjclose&&x.indicators.adjclose[0].adjclose)||q,c={},a={};
   x.timestamp.forEach(function(t,i){if(q[i]==null)return;var d=new Date(t*1000).toISOString().slice(0,10);c[d]=q[i];a[d]=ad[i]==null?q[i]:ad[i]});
-  return{c:c,a:a,last:x.meta.regularMarketPrice,cur:x.meta.currency}})}
+  return{c:c,a:a,last:x.meta.regularMarketPrice,cur:x.meta.currency,nm:x.meta.longName||x.meta.shortName||""}})}
 function cur(c){return c==="GBp"||c==="GBX"?"GBP":c}
 function kf(c){return c==="GBp"||c==="GBX"?.01:1}
 function ecb(u){
@@ -126,14 +135,24 @@ function loadAll(extra){
   var nc={};
   var fx={};cl.forEach(function(u,i){var f=F[i],ks=Object.keys(f.c).sort();if(f.last)f.c[ks[ks.length-1]]=f.last;fx[u]=al(f.c);if(f.last)fx[u][fx[u].length-1]=f.last});
   function toE(arr,c){var u=cur(c);if(u==="EUR")return arr;var k=kf(c);return arr.map(function(v,i){return v*k/fx[u][i]})}
+  var ni={};
+  syms.forEach(function(s,i){var r=R[i],ks=Object.keys(r.c).sort(),ln=ks.length,cu=r.last||r.c[ks[ln-1]],pd=ks[ln-2],pr=r.c[pd]||cu,u=cur(r.cur),k=kf(r.cur),ix=ax.indexOf(pd),fp=(u==="EUR")?1:fx[u][ix<0?ax.length-1:ix];
+   ni[s]={nat:cu,cs:SY[r.cur]||r.cur,pct:(cu/pr-1)*100,pe:pr*k/fp,name:r.nm||s}});
   syms.forEach(function(s,i){var r=R[i],ks=Object.keys(r.c).sort();if(r.last)r.c[ks[ks.length-1]]=r.last;nc[s]=toE(al(r.c),r.cur)});
   bk.forEach(function(k,i){var r=R[syms.length+i];nc[k]=toE(al(r.a),r.cur)});
-  cache=nc;N=ax.length;REAL=true})}
+  cache=nc;INFO=ni;N=ax.length;REAL=true})}
 function price(s,i){var p=serie(s);return i===N-1&&!REAL?p[i]*(1+(live[s]||0)):p[i]}
-function fmt(x,d){return x.toLocaleString("it-IT",{minimumFractionDigits:d,maximumFractionDigits:d})}
-function pct(x){return(x>=0?"+":"−")+fmt(Math.abs(x),2)+"%"}
+function grp(s){return s.replace(/\B(?=(\d{3})+(?!\d))/g,".")}
+function fmt(x,d){var n=Math.abs(x).toFixed(d).split(".");return(x<0&&+n.join(".")!==0?"−":"")+grp(n[0])+(n[1]?","+n[1]:"")}
+function qf(q){var n=(+q.toFixed(4)).toString().split(".");return grp(n[0])+(n[1]?","+n[1]:"")}
+function esc(t){return String(t).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function num(v){v=v.trim();if(v.indexOf(",")>=0)v=v.replace(/\./g,"").replace(",",".");return parseFloat(v)}
+function sgn(x){return Math.round(x*100)<0?"−":"+"}
+function pct(x){return sgn(x)+fmt(Math.abs(x),2)+"%"}
 function eur(x){return fmt(x,2)+" €"}
-function cls(x){return x>=0?"up":"dn"}
+function cls(x){var r=Math.round(x*100);return r>0?"up":r<0?"dn":"z"}
+var INFO={},SY={USD:"$",EUR:"€",GBP:"£",GBp:"p",GBX:"p"};
+function pi(s){var i=INFO[s];if(REAL&&i)return i;var a=price(s,N-1),b=price(s,N-2);return{nat:a,cs:"€",pct:(a/b-1)*100,pe:b,name:s}}
 function render(){
  var P=state.pd,st=Math.max(0,N-1-P),ptf=[],i;
  for(i=st;i<N;i++){var v=0;state.pos.forEach(function(o){v+=o.q*price(o.s,i)});ptf.push(v)}
@@ -146,15 +165,19 @@ function render(){
  document.getElementById("lp").textContent="Portafoglio "+pct(rp);
  document.getElementById("lb").textContent=BMS[state.bm].n+" "+pct(rb);
  chart(pn,bn);
- var tv=ptf[ptf.length-1],prev=0,cost=0;
- state.pos.forEach(function(o){prev+=o.q*price(o.s,N-2);cost+=o.q*o.c});
- var dd=tv-prev,g=tv-cost;
+ var tv=ptf[ptf.length-1],pv=0,cost=0,dayPL=0,V=state.view==="t";
+ var rows=state.pos.map(function(o){var p=price(o.s,N-1),i=pi(o.s),v=o.q*p,c=o.q*o.c,d=o.q*(p-i.pe);pv+=o.q*i.pe;cost+=c;dayPL+=d;
+  return{s:o.s,nm:i.name||o.s,q:o.q,v:v,nat:i.nat,cs:i.cs,dp:i.pct,dpl:d,tpl:v-c,tp:c?(v/c-1)*100:0}});
+ var pl=V?tv-cost:dayPL,pp=V?(cost?(tv/cost-1)*100:0):(pv?dayPL/pv*100:0);
  document.getElementById("val").textContent=eur(tv);
- var de2=document.getElementById("day");de2.textContent=(dd>=0?"+":"−")+eur(Math.abs(dd))+" ("+pct(prev?dd/prev*100:0)+")";de2.className=cls(dd);
- var ge=document.getElementById("gain");ge.textContent=(g>=0?"+":"−")+eur(Math.abs(g))+" ("+pct(cost?g/cost*100:0)+")";ge.className=cls(g);
+ var sa=document.getElementById("spl"),sb=document.getElementById("spp");
+ sa.textContent=sgn(pl)+eur(Math.abs(pl));sa.className="s "+cls(pl);
+ sb.textContent=pct(pp);sb.className="s "+cls(pp);
+ document.getElementById("hdr").textContent=V?"Posizioni · totale":"Posizioni · oggi";
  var h="";
- state.pos.forEach(function(o,k){var p=price(o.s,N-1),gl=(p/o.c-1)*100;
-  h+='<div class="pos"><div><b>'+o.s+'</b><small>'+fmt(o.q,2)+' × '+eur(p)+'</small></div><div class="r"><b>'+eur(o.q*p)+'</b><small class="'+cls(gl)+'">'+pct(gl)+'</small></div><button class="x" data-k="'+k+'" aria-label="Rimuovi '+o.s+'">×</button></div>'});
+ rows.forEach(function(r,k){var x=V?r.tpl:r.dpl,y=V?r.tp:r.dp,bt='<button class="x" data-k="'+k+'" aria-label="Rimuovi '+esc(r.s)+'">×</button>',pc='<small class="'+cls(y)+'">'+pct(y)+'</small>',pb='<b class="'+cls(x)+'">'+sgn(x)+eur(Math.abs(x))+'</b>';
+  if(V)h+='<div class="pos t"><div><div class="nm">'+esc(r.nm)+'</div><small>'+esc(r.s)+'<span class="pill">x'+qf(r.q)+'</span></small></div><div class="r"><b>'+eur(r.v)+'</b><div class="pl">'+pb+pc+'</div></div>'+bt+'</div>';
+  else h+='<div class="pos"><div><b>'+esc(r.s)+'</b></div><div class="r"><b>'+fmt(r.nat,2)+" "+r.cs+'</b></div><div class="r">'+pb+pc+'</div>'+bt+'</div>'});
  document.getElementById("list").innerHTML=h||'<p class="note">Nessuna posizione. Aggiungi la prima qui sotto.</p>';
 }
 function chart(a,b){
@@ -175,12 +198,13 @@ function chips(id,items,cur,fn){
  var el=document.getElementById(id);el.innerHTML="";
  items.forEach(function(it){var b=document.createElement("button");b.className="chip";b.textContent=it[1];b.setAttribute("aria-pressed",it[0]===cur);b.onclick=function(){fn(it[0]);save();draw()};el.appendChild(b)})}
 function draw(){
+ chips("vw",[["d","Oggi"],["t","Totale"]],state.view,function(v){state.view=v});
  chips("bms",Object.keys(BMS).map(function(k){return[k,BMS[k].n]}),state.bm,function(k){state.bm=k});
  chips("pds",PDS.map(function(p){return[p[1],p[0]]}),state.pd,function(v){state.pd=v});
  render()}
 document.getElementById("list").onclick=function(e){var k=e.target.getAttribute("data-k");if(k!==null){state.pos.splice(+k,1);save();render()}};
 document.getElementById("addb").onclick=function(){
- var s=document.getElementById("s").value.trim().toUpperCase(),q=parseFloat(document.getElementById("q").value.replace(",",".")),c=parseFloat(document.getElementById("c").value.replace(",",".")),er=document.getElementById("err");
+ var s=document.getElementById("s").value.trim().toUpperCase(),q=num(document.getElementById("q").value),c=num(document.getElementById("c").value),er=document.getElementById("err");
  if(!/^[A-Z0-9.^=-]{1,12}$/.test(s)){er.textContent="Inserisci un ticker valido, ad esempio AAPL.";return}
  if(!(q>0)||!(c>0)){er.textContent="Quantità e prezzo di carico devono essere maggiori di zero.";return}
  er.textContent="";
