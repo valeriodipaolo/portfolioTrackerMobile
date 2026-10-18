@@ -3,6 +3,8 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+permissions:
+  contents: write
 jobs:
   apk:
     runs-on: ubuntu-latest
@@ -15,6 +17,17 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+      - name: Chiave di firma stabile
+        run: |
+          if [ ! -f debug.keystore ]; then
+            keytool -genkeypair -keystore debug.keystore -storepass android -keypass android -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 36500 -dname "CN=Android Debug,O=Android,C=US"
+            git config user.name "github-actions"
+            git config user.email "actions@github.com"
+            git add debug.keystore
+            git commit -m "Aggiunge chiave di firma"
+            git push
+          fi
+          mkdir -p ~/.android && cp debug.keystore ~/.android/debug.keystore
       - name: Crea progetto Capacitor
         run: |
           mkdir www && cp index.html www/
@@ -25,6 +38,7 @@ jobs:
           EOF
           npx cap add android
           npx cap sync android
+          sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/" android/app/build.gradle
       - name: Compila APK
         run: cd android && ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4
