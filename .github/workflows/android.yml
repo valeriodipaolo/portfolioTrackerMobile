@@ -5,6 +5,9 @@ on:
     branches: [main]
 permissions:
   contents: write
+concurrency:
+  group: build-apk
+  cancel-in-progress: false
 jobs:
   apk:
     runs-on: ubuntu-latest
@@ -27,7 +30,7 @@ jobs:
             git commit -m "Aggiunge chiave di firma"
             git push
           fi
-          mkdir -p ~/.android && cp debug.keystore ~/.android/debug.keystore
+          ls -l debug.keystore
       - name: Crea progetto Capacitor
         run: |
           mkdir www && cp index.html www/
@@ -39,8 +42,12 @@ jobs:
           npx cap add android
           npx cap sync android
           sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/" android/app/build.gradle
+          sed -i 's|buildTypes {|signingConfigs {\n        stable {\n            storeFile file("$rootDir/../debug.keystore")\n            storePassword "android"\n            keyAlias "androiddebugkey"\n            keyPassword "android"\n        }\n    }\n    buildTypes {\n        debug {\n            signingConfig signingConfigs.stable\n        }|' android/app/build.gradle
+          grep -q "signingConfig signingConfigs.stable" android/app/build.gradle || { echo "Firma stabile non applicata"; exit 1; }
       - name: Compila APK
         run: cd android && ./gradlew assembleDebug
+      - name: Impronta della firma
+        run: keytool -printcert -jarfile android/app/build/outputs/apk/debug/app-debug.apk | grep -i "SHA256" || true
       - uses: actions/upload-artifact@v4
         with:
           name: portafoglio-apk
