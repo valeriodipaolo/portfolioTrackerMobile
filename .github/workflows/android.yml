@@ -36,7 +36,7 @@ jobs:
         run: |
           mkdir -p www && cp index.html www/
           npm init -y
-          npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6
+          npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6 @capacitor/filesystem@6 @capacitor/share@6
           cat > capacitor.config.json <<'EOF'
           {"appId":"app.portafoglio.personale","appName":"Portafoglio","webDir":"www","plugins":{"CapacitorHttp":{"enabled":true}}}
           EOF
