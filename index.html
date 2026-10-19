@@ -358,7 +358,7 @@ function msg(t){return'<text x="170" y="85" text-anchor="middle" fill="var(--mut
 function fetchSeries(s,pd){var k=s+"|"+pd,c=SC[k];if(c&&Date.now()-c.t<60000)return Promise.resolve(c.v);var g=RG[pd];
  return fetch("https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(s)+"?range="+g[0]+"&interval="+g[1],{headers:{"User-Agent":UA}}).then(function(r){if(!r.ok)throw new Error(s);return r.json()}).then(function(j){
   var x=j.chart.result[0],q=x.indicators.quote[0].close,p=[];(x.timestamp||[]).forEach(function(t,i){if(q[i]!=null)p.push([t,q[i]])});
-  var v={p:p,base:pd==="1G"?((INFO[s]&&INFO[s].base)||x.meta.chartPreviousClose||(p[0]||[0,0])[1]):(p[0]||[0,0])[1],cur:x.meta.currency};SC[k]={t:Date.now(),v:v};return v})}
+  var v={p:p,base:pd==="1G"?((INFO[s]&&INFO[s].base)||x.meta.chartPreviousClose||(p[0]||[0,0])[1]):(x.meta.chartPreviousClose||(p[0]||[0,0])[1]),cur:x.meta.currency};SC[k]={t:Date.now(),v:v};return v})}
 function dchart(){
  var s=dv.s,pd=dv.pd,k=s+"|"+pd,svg=$("dch");
  if(!REAL){svg.innerHTML=msg("Il grafico richiede i dati di Yahoo");$("dchg").innerHTML="";return}
