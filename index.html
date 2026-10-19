@@ -183,7 +183,7 @@ function ecb(u){
  return fetch("https://data-api.ecb.europa.eu/service/data/EXR/D."+u+".EUR.SP00.A?lastNObservations=300&format=csvdata").then(function(r){if(!r.ok)throw new Error(u);return r.text()}).then(function(t){
   var L=t.trim().split(/\r?\n/),h=L[0].split(","),ti=h.indexOf("TIME_PERIOD"),vi=h.indexOf("OBS_VALUE"),c={};
   L.slice(1).forEach(function(l){var p=l.split(",");if(p[vi]&&p[ti])c[p[ti]]=parseFloat(p[vi])});
-  if(!Object.keys(c).length)throw new Error(u);return{c:c}})}
+  var ks=Object.keys(c).sort();if(!ks.length)throw new Error(u);return{c:c,last:c[ks[ks.length-1]]}})}
 function loadAll(extra){
  var syms=state.all.map(function(o){return o.s});if(extra)syms.push(extra);
  syms=syms.filter(function(s,i){return syms.indexOf(s)===i});
