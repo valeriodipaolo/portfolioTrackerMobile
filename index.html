@@ -86,6 +86,10 @@ label{display:block;margin-top:14px;font-size:.85rem;color:var(--mut)}label inpu
 .gh .r{text-align:right;white-space:nowrap}.gh .r b{display:block}
 .ga{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap}.ga .gb{border:1px solid var(--line);background:var(--surf);color:var(--ink);border-radius:8px;padding:5px 10px;font:inherit;font-size:.8rem;cursor:pointer}
 select{font:inherit;font-size:16px;padding:9px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);width:100%;margin-top:5px}
+.grp{border:1px solid var(--line);border-left:5px solid var(--gc);border-radius:12px;overflow:hidden;margin-top:12px}
+.grp:first-child{margin-top:0}
+.grp .gh{margin:0;border-radius:0;background:color-mix(in srgb,var(--gc) 16%,var(--surf));padding:12px}
+.grp .pos{padding-left:12px;padding-right:12px}
 </style>
 </head>
 <body>
@@ -224,15 +228,16 @@ function loadAll(extra){
 function price(s,i){var p=serie(s);return i===N-1&&!REAL?p[i]*(1+(live[s]||0)):p[i]}
 function grp(s){return s.replace(/\B(?=(\d{3})+(?!\d))/g,".")}
 function fmt(x,d){var n=Math.abs(x).toFixed(d).split(".");return(x<0&&+n.join(".")!==0?"−":"")+grp(n[0])+(n[1]?","+n[1]:"")}
-function spark(p,b,c){
+function win(p,st,en){if(!st||!en||!p.length)return null;var sh=Math.floor((p[0][0]-st+3600)/86400)*86400;return[st+sh,en+sh]}
+function spark(p,b,c,m){
  if(!p||p.length<2)return"";
- var W=64,H=34,t0=p[0][0],t1=p[p.length-1][0],mn=b,mx=b;
+ var W=64,H=34,w=m&&m.st?win(p,m.st,m.en):null,t0=w?w[0]:p[0][0],t1=w?w[1]:p[p.length-1][0],mn=b,mx=b;
  p.forEach(function(q){if(q[1]<mn)mn=q[1];if(q[1]>mx)mx=q[1]});
  var pd=(mx-mn)*.1||1;mn-=pd;mx+=pd;
- function X(t){return(t-t0)/((t1-t0)||1)*W}
+ function X(t){return Math.max(0,Math.min(W,(t-t0)/((t1-t0)||1)*W))}
  function Y(v){return 2+(mx-v)/(mx-mn)*(H-4)}
- var d=p.map(function(q,i){return(i?"L":"M")+X(q[0]).toFixed(1)+" "+Y(q[1]).toFixed(1)}).join(""),col=c==="up"?"var(--up)":c==="dn"?"var(--dn)":"var(--mut)",yb=Y(b).toFixed(1);
- return'<svg viewBox="0 0 '+W+' '+H+'" aria-hidden="true"><line x1="0" x2="'+W+'" y1="'+yb+'" y2="'+yb+'" stroke="var(--mut)" stroke-width="1" stroke-dasharray="2 2"/><path d="'+d+'L'+W+' '+yb+'L0 '+yb+'Z" fill="'+col+'" fill-opacity=".18"/><path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="1.5" stroke-linejoin="round"/></svg>'}
+ var d=p.map(function(q,i){return(i?"L":"M")+X(q[0]).toFixed(1)+" "+Y(q[1]).toFixed(1)}).join(""),col=c==="up"?"var(--up)":c==="dn"?"var(--dn)":"var(--mut)",yb=Y(b).toFixed(1),xe=X(p[p.length-1][0]).toFixed(1),xs=X(p[0][0]).toFixed(1);
+ return'<svg viewBox="0 0 '+W+' '+H+'" aria-hidden="true"><line x1="0" x2="'+W+'" y1="'+yb+'" y2="'+yb+'" stroke="var(--mut)" stroke-width="1" stroke-dasharray="2 2"/><path d="'+d+'L'+xe+' '+yb+'L'+xs+' '+yb+'Z" fill="'+col+'" fill-opacity=".18"/><path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="1.5" stroke-linejoin="round"/></svg>'}
 function qf(q){var n=(+q.toFixed(4)).toString().split(".");return grp(n[0])+(n[1]?","+n[1]:"")}
 function esc(t){return String(t).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function num(v){v=v.trim();if(v.indexOf(",")>=0)v=v.replace(/\./g,"").replace(",",".");return parseFloat(v)}
@@ -242,6 +247,7 @@ function eur(x){return fmt(x,2)+" €"}
 function cls(x){var r=Math.round(x*100);return r>0?"up":r<0?"dn":"z"}
 var INFO={},SY={USD:"$",EUR:"€",GBP:"£",GBp:"p",GBX:"p"};
 function pi(s){var i=INFO[s];if(REAL&&i)return i;var a=price(s,N-1),b=price(s,N-2);return{nat:a,cs:"€",pct:(a/b-1)*100,pe:b,name:s,sp:[],base:0}}
+var GC=["#3b82f6","#f59e0b","#a855f7","#ec4899","#06b6d4","#64748b"];
 function gid(s){var g=state.gmap[s];return state.groups.some(function(x){return x.id===g})?g:""}
 function addGroup(n){var id="g"+Date.now().toString(36);state.groups.push({id:id,n:n});return id}
 function mkm(m){var p=m&&m.currentTradingPeriod&&m.currentTradingPeriod.regular;return p?{st:p.start,en:p.end,t:m.regularMarketTime}:null}
@@ -252,7 +258,7 @@ function rowHtml(r,V){
  if(ed)return'<div class="pos ro" data-s="'+s+'">'+id+'<div class="mv"><button class="mvb" data-s="'+s+'" data-d="-1" aria-label="Sposta su">▲</button><button class="mvb" data-s="'+s+'" data-d="1" aria-label="Sposta giù">▼</button></div></div>';
  var x=V?r.tpl:r.dpl,y=V?r.tp:r.dp,cx=cls(x),cy=cls(y),pb='<b class="'+cx+'">'+sgn(x)+eur(Math.abs(x))+'</b>';
  if(V)return'<div class="pos t" data-s="'+s+'">'+id+'<div class="r"><b>'+eur(r.v)+'</b>'+pb+'<small class="'+cy+'">'+pct(y)+'</small></div></div>';
- return'<div class="pos d" data-s="'+s+'">'+id+'<div class="sp">'+spark(r.sp,r.bs,cy)+'</div><div class="r"><b>'+fmt(r.nat,2)+" "+r.cs+'</b>'+pb+'<span class="pc '+cy+'">'+pct(y)+'</span></div></div>'}
+ return'<div class="pos d" data-s="'+s+'">'+id+'<div class="sp">'+spark(r.sp,r.bs,cy,r.mo)+'</div><div class="r"><b>'+fmt(r.nat,2)+" "+r.cs+'</b>'+pb+'<span class="pc '+cy+'">'+pct(y)+'</span></div></div>'}
 function ghead(sec,V){var g=sec.g,v=0,pl=0,b0=0,cs=0;
  sec.rs.forEach(function(r){v+=r.v;pl+=V?r.tpl:r.dpl;b0+=r.b0;cs+=r.v-r.tpl});
  var pp=V?(cs?pl/cs*100:0):(b0?pl/b0*100:0),n=sec.rs.length,
@@ -264,7 +270,7 @@ function listHtml(rows,V){
   var secs=state.groups.map(function(g){return{g:g,rs:sr.filter(function(r){return gid(r.s)===g.id})}}),un=sr.filter(function(r){return !gid(r.s)});
   if(un.length)secs.push({g:{id:"",n:"Senza gruppo"},rs:un});
   if(!state.groups.length&&sr.length)h+='<p class="note">Crea un gruppo con «+ Nuovo gruppo», poi assegna i titoli dal loro dettaglio.</p>';
-  secs.forEach(function(x){h+=ghead(x,V);if(!state.coll[x.g.id])h+=x.rs.map(function(r){return rowHtml(r,V)}).join("")})
+  secs.forEach(function(x){var gi=state.groups.indexOf(x.g),gc=gi<0?"var(--mut)":GC[gi%GC.length];h+='<div class="grp" style="--gc:'+gc+'">'+ghead(x,V)+(state.coll[x.g.id]?"":x.rs.map(function(r){return rowHtml(r,V)}).join(""))+'</div>'})
  }else h=sr.map(function(r){return rowHtml(r,V)}).join("");
  if(sr.some(function(r){return opn(r.mo)!==null}))h+='<p class="note"><i class="mkt on"></i>mercato aperto<i class="mkt off" style="margin-left:14px"></i>mercato chiuso</p>';
  return h}
@@ -406,7 +412,7 @@ function fetchSeries(s,pd){var k=s+"|"+pd,c=SC[k];if(c&&Date.now()-c.t<60000)ret
  return yj(s,q).then(function(a){
   var pts=st?a.p.filter(function(x){return x[0]>=st}):a.p,pre=st?a.p.filter(function(x){return x[0]<st}):[],base=pre.length?pre[pre.length-1][1]:(pts[0]||[0,0])[1];
   if(pd==="1G")base=(INFO[s]&&INFO[s].base)||a.m.chartPreviousClose||base;
-  var fin=function(b){var v={p:pts,base:b,cur:a.m.currency};SC[k]={t:Date.now(),v:v};return v};
+  var fin=function(b){var v={p:pts,base:b,cur:a.m.currency,ses:a.m.currentTradingPeriod&&a.m.currentTradingPeriod.regular};SC[k]={t:Date.now(),v:v};return v};
   if(pd==="1M")return yj(s,"period1="+(st-9*86400)+"&period2="+st+"&interval=1d").then(function(z){return fin(z.p.length?z.p[z.p.length-1][1]:base)}).catch(function(){return fin(base)});
   return fin(base)})}
 function dchart(){
@@ -421,14 +427,16 @@ function paintD(v,s,pd){
  P.forEach(function(q){if(q[1]<mn)mn=q[1];if(q[1]>mx)mx=q[1]});
  var dmn=mn,dmx=mx;
  var pd2=(mx-mn)*.08||1;mn-=pd2;mx+=pd2;
+ var w=pd==="1G"?win(P,v.ses&&v.ses.start,v.ses&&v.ses.end):null;if(w){t0=w[0];t1=w[1]}
  function X(t){return L+(t-t0)/((t1-t0)||1)*(W-L-R)}
  function Y(y){return T+(mx-y)/(mx-mn)*(H-T-B)}
  var d=P.map(function(q,i){return(i?"L":"M")+X(q[0]).toFixed(1)+" "+Y(q[1]).toFixed(1)}).join(""),c=cls((last/b-1)*100),col=c==="up"?"var(--up)":c==="dn"?"var(--dn)":"var(--mut)",yb=Y(b).toFixed(1),ex=W-R;
  var h='<line x1="'+L+'" x2="'+ex+'" y1="'+yb+'" y2="'+yb+'" stroke="var(--mut)" stroke-dasharray="2 3"/>'+
-  '<path d="'+d+'L'+X(t1).toFixed(1)+' '+yb+'L'+X(t0).toFixed(1)+' '+yb+'Z" fill="'+col+'" fill-opacity=".15"/>'+
+  '<path d="'+d+'L'+X(P[P.length-1][0]).toFixed(1)+' '+yb+'L'+X(P[0][0]).toFixed(1)+' '+yb+'Z" fill="'+col+'" fill-opacity=".15"/>'+
   '<path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="1.8" stroke-linejoin="round"/>';
 
 
+ if(w&&t1-P[P.length-1][0]>300)h+='<circle cx="'+X(P[P.length-1][0]).toFixed(1)+'" cy="'+Y(last).toFixed(1)+'" r="3.5" fill="'+col+'"/>';
  h+='<text x="'+(ex+4)+'" y="'+(Y(dmx)+3).toFixed(1)+'" font-size="10" fill="var(--mut)">'+fmt(dmx,2)+'</text><text x="'+(ex+4)+'" y="'+(Y(dmn)+3).toFixed(1)+'" font-size="10" fill="var(--mut)">'+fmt(dmn,2)+'</text>'+
   '<text x="'+L+'" y="'+(H-4)+'" font-size="10" fill="var(--mut)">'+lab(t0,pd)+'</text><text x="'+ex+'" y="'+(H-4)+'" font-size="10" text-anchor="end" fill="var(--mut)">'+lab(t1,pd)+'</text>';
  h+='<text x="'+(L+2)+'" y="'+(Number(yb)-4)+'" font-size="10" fill="var(--mut)">'+fmt(b,2)+'</text>';svg.innerHTML=h;
