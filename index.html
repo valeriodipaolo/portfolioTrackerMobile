@@ -93,6 +93,7 @@ select{font:inherit;font-size:16px;padding:9px;border:1px solid var(--line);bord
 .seg.ei{gap:5px}.seg.ei .chip{padding:7px 2px;font-size:.74rem}
 .leg{flex-wrap:wrap;gap:6px 14px;justify-content:flex-start}
 .bd{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.chk{display:flex;gap:8px;align-items:center;margin-top:14px;font-size:.85rem;color:var(--mut)}.chk input{width:auto;margin:0}
 </style>
 </head>
 <body>
@@ -115,13 +116,13 @@ select{font:inherit;font-size:16px;padding:9px;border:1px solid var(--line);bord
 <div id="list"></div>
 <button class="btn add2" id="addb">+ Aggiungi posizione</button>
 </div>
-<div class="card"><h2>Backup</h2><div class="two"><button class="chip" id="exp">Esporta CSV</button><button class="chip" id="impb">Importa CSV</button></div><input type="file" id="imp" accept=".csv,text/csv,text/plain,.txt" hidden></div>
+<div class="card"><h2>Impostazioni e backup</h2><div class="two"><button class="chip" id="exp">Esporta CSV</button><button class="chip" id="impb">Importa CSV</button></div><label class="chk"><input type="checkbox" id="cashr"><span>Includi la liquidità nei rendimenti</span></label><input type="file" id="imp" accept=".csv,text/csv,text/plain,.txt" hidden></div>
 </main>
 <div id="detv" class="ov" hidden><div class="ovi">
 <div class="ovh"><button class="back" id="dback">‹ Indietro</button></div>
 <div id="dhead"></div>
 <div class="seg ei" id="dpd" role="group" aria-label="Periodo del grafico" style="margin-top:12px"></div>
-<div class="card"><div id="dchg"></div><svg id="dch" viewBox="0 0 340 170" role="img" aria-label="Andamento del prezzo del titolo"></svg></div>
+<div class="card" id="dchc"><div id="dchg"></div><svg id="dch" viewBox="0 0 340 170" role="img" aria-label="Andamento del prezzo del titolo"></svg></div>
 <div class="card" id="dsum"></div>
 <div class="card"><label style="margin-top:0"><span>Gruppo</span><select id="dgrp"></select></label></div>
 <div class="card"><h2>Operazioni</h2><div id="dops"></div>
@@ -130,10 +131,11 @@ select{font:inherit;font-size:16px;padding:9px;border:1px solid var(--line);bord
 </div></div>
 <div id="addv" class="ov" hidden><div class="ovi">
 <div class="ovh"><button class="back" id="canc">‹ Annulla</button><h2 id="ftit">Nuova posizione</h2></div>
-<label>Titolo<input id="s" placeholder="Cerca per nome o ticker" autocomplete="off" autocapitalize="off"></label>
+<div class="seg" id="ftype" style="margin-top:10px"><button class="chip" id="ft1" aria-pressed="true">Titolo di Yahoo</button><button class="chip" id="ft2" aria-pressed="false">Importo manuale</button></div>
+<label><span id="lti">Titolo</span><input id="s" placeholder="Cerca per nome o ticker" autocomplete="off" autocapitalize="off"></label>
 <div class="sug" id="sug"></div>
-<label>Quantità<input id="q" inputmode="decimal" placeholder="Es. 10"></label>
-<label><span id="lpr">Prezzo di acquisto (€)</span><input id="c" inputmode="decimal" placeholder="Es. 150,00"></label>
+<label><span id="lq">Quantità</span><input id="q" inputmode="decimal" placeholder="Es. 10"></label>
+<label id="lcw"><span id="lpr">Prezzo di acquisto (€)</span><input id="c" inputmode="decimal" placeholder="Es. 150,00"></label>
 <label><span id="ldt">Data di acquisto</span><input id="dt" type="date"></label>
 <div class="err" id="err" role="alert"></div>
 <button class="btn" id="save">Salva</button>
@@ -149,10 +151,10 @@ var ANCH={AAPL:230,MSFT:420,NVDA:140,"VWCE.DE":130,"IWDA.AS":105,TSLA:250};
 var N=253,state={lots:[],pos:[],bms:["SPX"],pd:"6M"};
 try{var sv=JSON.parse(localStorage.getItem("pf1")||"null");if(sv&&(sv.pos||sv.lots))state=sv}catch(e){}
 if(!state.bms)state.bms=[state.bm||"SPX"];if(typeof state.pd!=="string"||PERS.indexOf(state.pd)<0)state.pd="6M";
-state.view=state.view||"d";state.sort=state.sort||"m";state.order=state.order||[];state.groups=state.groups||[];state.gmap=state.gmap||{};state.layout=state.layout||"f";state.coll=state.coll||{};
+state.view=state.view||"d";state.sort=state.sort||"m";state.order=state.order||[];state.man=state.man||{};state.groups=state.groups||[];state.gmap=state.gmap||{};state.layout=state.layout||"f";state.coll=state.coll||{};
 if(!state.lots)state.lots=(state.pos||[]).map(function(o){return{s:o.s,d:"",q:o.q,c:o.c}});
 agg();
-function save(){SET={};try{localStorage.setItem("pf1",JSON.stringify({lots:state.lots,bms:state.bms,pd:state.pd,view:state.view,sort:state.sort,order:state.order,groups:state.groups,gmap:state.gmap,layout:state.layout,coll:state.coll}))}catch(e){}}
+function save(){SET={};try{localStorage.setItem("pf1",JSON.stringify({lots:state.lots,bms:state.bms,pd:state.pd,view:state.view,sort:state.sort,order:state.order,groups:state.groups,gmap:state.gmap,layout:state.layout,coll:state.coll,man:state.man,cashR:state.cashR}))}catch(e){}}
 function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;var t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 function gauss(r){return Math.sqrt(-2*Math.log(r()+1e-9))*Math.cos(6.2832*r())}
 function hash(s){var h=7;for(var i=0;i<s.length;i++)h=Math.imul(h,31)+s.charCodeAt(i)|0;return h}
@@ -171,7 +173,7 @@ function simDates(){var a=[],d=new Date();while(a.length<N){var w=d.getDay();if(
 function today(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
 function dmy(s){var p=s.split("-");return p[2]+"/"+p[1]+"/"+p[0]}
 function ord(){var h={},ok=function(x){return state.pos.some(function(p){return p.s===x})},a=(state.order||[]).filter(ok);a.forEach(function(x){h[x]=1});state.lots.forEach(function(l){if(!h[l.s]&&ok(l.s)){h[l.s]=1;a.push(l.s)}});return a}
-function sortRows(rows,V){if(state.sort==="r")return rows.slice().sort(function(a,b){return V?b.tp-a.tp:b.dp-a.dp});var o=ord();return rows.slice().sort(function(a,b){return o.indexOf(a.s)-o.indexOf(b.s)})}
+function sortRows(rows,V){if(state.sort==="r")return rows.slice().sort(function(a,b){if(a.man!==b.man)return a.man?1:-1;return V?b.tp-a.tp:b.dp-a.dp});var o=ord();return rows.slice().sort(function(a,b){return o.indexOf(a.s)-o.indexOf(b.s)})}
 function sorted(L){return L.map(function(l,i){return{l:l,i:i}}).sort(function(a,b){return(a.l.d||"").localeCompare(b.l.d||"")||((a.l.k==="s")-(b.l.k==="s"))||a.i-b.i}).map(function(x){return x.l})}
 function valid(L){var q={};return sorted(L).every(function(l){var v=(q[l.s]||0)+(l.k==="s"?-l.q:l.q);q[l.s]=v;return v>-1e-9})}
 function agg(){var m={},o=[];
@@ -183,7 +185,7 @@ function twrG(D,px,bms,st){
  var I=[],B={},ks=Object.keys(bms),pv=0,s0=-1,b0={},x=100,L=D[D.length-1];
  ks.forEach(function(k){B[k]=[]});
  for(var i=st;i<D.length;i++){var v=0,cf=0,hq={};
-  state.lots.forEach(function(l){var d=l.d&&l.d>L?L:l.d;if(!d||d<=D[i]){hq[l.s]=(hq[l.s]||0)+(l.k==="s"?-l.q:l.q);if(d&&i>0&&d>D[i-1])cf+=(l.k==="s"?-1:1)*l.q*l.c}});
+  state.lots.forEach(function(l){if(isMan(l.s)&&!state.cashR)return;var d=l.d&&l.d>L?L:l.d;if(!d||d<=D[i]){hq[l.s]=(hq[l.s]||0)+(l.k==="s"?-l.q:l.q);if(d&&i>0&&d>D[i-1])cf+=(l.k==="s"?-1:1)*l.q*l.c}});
   for(var s in hq)v+=hq[s]*px(s,i);
   if(s0<0){if(v>0){s0=i;I.push(100);ks.forEach(function(k){b0[k]=bms[k](i);B[k].push(100)});pv=v}}
   else{if(pv>1e-9)x*=(v-cf)/pv;I.push(x);ks.forEach(function(k){B[k].push(bms[k](i)/b0[k]*100)});pv=v}}
@@ -209,7 +211,7 @@ function ecbQ(u,q){
   var ks=Object.keys(c).sort();if(!ks.length)throw new Error(u);return{c:c,last:c[ks[ks.length-1]]}})}
 function loadAll(extra){
  var syms=state.all.map(function(o){return o.s});if(extra)syms.push(extra);
- syms=syms.filter(function(s,i){return syms.indexOf(s)===i});
+ syms=syms.filter(function(s,i){return syms.indexOf(s)===i&&!isMan(s)});
  var bk=Object.keys(YB),jobs=syms.concat(bk.map(function(k){return YB[k]}));
  return Promise.all(jobs.map(yf)).then(function(R){
   var cs={};R.forEach(function(r){var u=cur(r.cur);if(u!=="EUR")cs[u]=1});
@@ -228,7 +230,7 @@ function loadAll(extra){
   syms.forEach(function(s,i){var r=R[i],ks=Object.keys(r.c).sort();if(r.last)r.c[ks[ks.length-1]]=r.last;nc[s]=toE(al(r.c),r.cur)});
   bk.forEach(function(k,i){var r=R[syms.length+i];nc[k]=toE(al(r.a),r.cur)});
   cache=nc;INFO=ni;FXS=FXN;N=ax.length;AXD=ax;REAL=true})}
-function price(s,i){var p=serie(s);return i===N-1&&!REAL?p[i]*(1+(live[s]||0)):p[i]}
+function price(s,i){if(isMan(s))return 1;var p=serie(s);return i===N-1&&!REAL?p[i]*(1+(live[s]||0)):p[i]}
 function grp(s){return s.replace(/\B(?=(\d{3})+(?!\d))/g,".")}
 function fmt(x,d){var n=Math.abs(x).toFixed(d).split(".");return(x<0&&+n.join(".")!==0?"−":"")+grp(n[0])+(n[1]?","+n[1]:"")}
 function win(p,st,en){if(!st||!en||!p.length)return null;var sh=Math.floor((p[0][0]-st+3600)/86400)*86400;return[st+sh,en+sh]}
@@ -249,21 +251,24 @@ function pct(x){return sgn(x)+fmt(Math.abs(x),2)+"%"}
 function eur(x){return fmt(x,2)+" €"}
 function cls(x){var r=Math.round(x*100);return r>0?"up":r<0?"dn":"z"}
 var INFO={},SY={USD:"$",EUR:"€",GBP:"£",GBp:"p",GBX:"p"};
-function pi(s){var i=INFO[s];if(REAL&&i)return i;var a=price(s,N-1),b=price(s,N-2);return{nat:a,cs:"€",pct:(a/b-1)*100,pe:b,name:s,sp:[],base:0}}
+function pi(s){var i=INFO[s];if(REAL&&i)return i;var a=price(s,N-1),b=price(s,N-2);return{nat:a,cs:"€",pct:(a/b-1)*100,pe:b,name:state.man[s]||s,sp:[],base:0}}
 var GC=["#3b82f6","#f59e0b","#a855f7","#ec4899","#06b6d4","#64748b"];
+function isMan(s){return s.indexOf("CASH-")===0}
+function newCash(){var id;do{id="CASH-"+Math.random().toString(36).slice(2,7).toUpperCase()}while(state.man[id]);return id}
 function gid(s){var g=state.gmap[s];return state.groups.some(function(x){return x.id===g})?g:""}
 function addGroup(n){var id="g"+Date.now().toString(36);state.groups.push({id:id,n:n});return id}
 function mkm(m){var p=m&&m.currentTradingPeriod&&m.currentTradingPeriod.regular;return p?{st:p.start,en:p.end,t:m.regularMarketTime}:null}
 function opn(m){if(!m||!m.st)return null;var n=Date.now()/1000;return n>=m.st&&n<=m.en&&(!m.t||n-m.t<3600)}
 function mkd(m){var o=opn(m);return o===null?"":'<i class="mkt '+(o?"on":"off")+'" role="img" aria-label="'+(o?"Mercato aperto":"Mercato chiuso")+'"></i>'}
 function rowHtml(r,V){
- var ed=reo&&state.sort!=="r",s=esc(r.s),id='<div class="id"><div class="nm">'+esc(r.nm)+'</div><small>'+mkd(r.mo)+s+(V&&!ed?'<span class="pill">x'+qf(r.q)+'</span>':'')+'</small></div>';
+ var ed=reo&&state.sort!=="r",s=esc(r.s),id='<div class="id"><div class="nm">'+esc(r.nm)+'</div><small>'+(r.man?'<span class="pill" style="margin-left:0">Manuale</span>':mkd(r.mo)+s+(V&&!ed?'<span class="pill">x'+qf(r.q)+'</span>':''))+'</small></div>';
  if(ed)return'<div class="pos ro" data-s="'+s+'">'+id+'<div class="mv"><button class="mvb" data-s="'+s+'" data-d="-1" aria-label="Sposta su">▲</button><button class="mvb" data-s="'+s+'" data-d="1" aria-label="Sposta giù">▼</button></div></div>';
+ if(r.man){var fx2='<small class="mut">Valore fisso</small>';return V?'<div class="pos t" data-s="'+s+'">'+id+'<div class="r"><b>'+eur(r.v)+'</b>'+fx2+'</div></div>':'<div class="pos d" data-s="'+s+'">'+id+'<div class="sp"></div><div class="r"><b>'+eur(r.v)+'</b>'+fx2+'</div></div>'}
  var x=V?r.tpl:r.dpl,y=V?r.tp:r.dp,cx=cls(x),cy=cls(y),pb='<b class="'+cx+'">'+sgn(x)+eur(Math.abs(x))+'</b>';
  if(V)return'<div class="pos t" data-s="'+s+'">'+id+'<div class="r"><b>'+eur(r.v)+'</b>'+pb+'<small class="'+cy+'">'+pct(y)+'</small></div></div>';
  return'<div class="pos d" data-s="'+s+'">'+id+'<div class="sp">'+spark(r.sp,r.bs,cy,r.mo)+'</div><div class="r"><b>'+fmt(r.nat,2)+" "+r.cs+'</b>'+pb+'<span class="pc '+cy+'">'+pct(y)+'</span></div></div>'}
 function ghead(sec,V){var g=sec.g,v=0,pl=0,b0=0,cs=0;
- sec.rs.forEach(function(r){v+=r.v;pl+=V?r.tpl:r.dpl;b0+=r.b0;cs+=r.v-r.tpl});
+ sec.rs.forEach(function(r){v+=r.v;if(r.man&&!state.cashR)return;pl+=V?r.tpl:r.dpl;b0+=r.b0;cs+=r.v-r.tpl});
  var pp=V?(cs?pl/cs*100:0):(b0?pl/b0*100:0),n=sec.rs.length,
   ac=reo&&g.id?'<div class="ga"><button class="gb" data-act="mv" data-d="-1" data-g="'+g.id+'" aria-label="Sposta gruppo su">▲</button><button class="gb" data-act="mv" data-d="1" data-g="'+g.id+'" aria-label="Sposta gruppo giù">▼</button><button class="gb" data-act="ren" data-g="'+g.id+'">Rinomina</button><button class="gb" data-act="del" data-g="'+g.id+'">Elimina</button></div>':"";
  return'<div class="gh" data-g="'+g.id+'"><div class="gt"><span class="chev">'+(state.coll[g.id]?"▸":"▾")+'</span><div><b>'+esc(g.n)+'</b><small>'+n+(n===1?" titolo":" titoli")+'</small></div></div><div class="r">'+(V?'<b>'+eur(v)+'</b>':'')+'<b class="'+cls(pl)+'">'+sgn(pl)+eur(Math.abs(pl))+'</b><span class="pc '+cls(pp)+'">'+pct(pp)+'</span></div>'+ac+'</div>'}
@@ -294,7 +299,7 @@ function dailySer(){var pd=state.pd,st=0;
  var bms={};state.bms.forEach(function(k){var a=bser(k);bms[k]=function(i){return a[i]}});
  var r=twrG(AXD,price,bms,st);r.lab=r.I.length>1?[dm(AXD[r.s0]),dm(AXD[N-1])]:["",""];return r}
 function buildSet(pd){
- var syms=state.all.map(function(o){return o.s}),jobs=syms.concat(state.bms.map(function(k){return YB[k]})),key=pd+"|"+jobs.join(",")+"|"+state.lots.length,c=SET[key];
+ var syms=state.all.map(function(o){return o.s}).filter(function(s){return !isMan(s)}),jobs=syms.concat(state.bms.map(function(k){return YB[k]})),key=pd+"|"+jobs.join(",")+"|"+state.lots.length,c=SET[key];
  if(c&&Date.now()-c.t<60000)return Promise.resolve(c.v);
  var intra=pd==="1G"||pd==="5G",now=Math.floor(Date.now()/1000),sd="",q;
  if(intra)q=pd==="1G"?"range=1d&interval=5m":"range=5d&interval=15m";
@@ -323,7 +328,7 @@ function buildSet(pd){
      out.push(last===null?baseE:last*k/rateAt(u,D[i],FL))}
     var f=null;for(var n=0;n<out.length;n++)if(out[n]!==null){f=out[n];break}
     return out.map(function(v){return v===null?(f===null?0:f):v})});
-   var px=function(s,i){return V[syms.indexOf(s)][i]},bms={};
+   var px=function(s,i){return isMan(s)?1:V[syms.indexOf(s)][i]},bms={};
    state.bms.forEach(function(k,b){bms[k]=function(i){return V[syms.length+b][i]}});
    var r=twrG(D,px,bms,0);
    r.lab=intra?(pd==="1G"?[hm(T[1]),hm(T[T.length-1])]:[dm(D[1]),dm(D[D.length-1])]):[dm(D[Math.max(r.s0,0)]),dm(D[D.length-1])];
@@ -347,14 +352,14 @@ function bchips(){var el=document.getElementById("bms"),ks=Object.keys(BMS);el.i
   el.appendChild(b)})}
 function render(){
  mainChart();
- var tv=0,pv=0,cost=0,dayPL=0,rl=0,sb0=0,V=state.view==="t",L=AXD[N-1];
- state.all.forEach(function(p){rl+=p.r;sb0+=p.u});
+ var tv=0,tvr=0,pv=0,cost=0,dayPL=0,rl=0,sb0=0,V=state.view==="t",L=AXD[N-1];
+ state.all.forEach(function(p){if(isMan(p.s)&&!state.cashR)return;rl+=p.r;sb0+=p.u});
  var rows=state.pos.map(function(o){var p=price(o.s,N-1),i=pi(o.s),v=o.q*p,c=o.q*o.c,qn=0,sn=0;
   state.lots.forEach(function(l){if(l.s===o.s&&l.k!=="s"&&l.d&&l.d>=L){qn+=l.q;sn+=l.q*l.c}});
   var f=qn>o.q?o.q/qn:1,dd=(o.q-qn*f)*(p-i.pe)+f*(qn*p-sn),b0=(o.q-qn*f)*i.pe+f*sn;
-  tv+=v;pv+=b0;cost+=c;dayPL+=dd;
-  return{s:o.s,nm:i.name||o.s,mo:i.mkt,b0:b0,sp:i.sp,bs:i.base,q:o.q,v:v,nat:i.nat,cs:i.cs,dp:i.pct,dpl:dd,tpl:v-c,tp:c?(v/c-1)*100:0}});
- var tpl=tv-cost+rl,base=cost+sb0,pl=V?tpl:dayPL,pp=V?(base?tpl/base*100:0):(pv?dayPL/pv*100:0);
+  tv+=v;if(!(isMan(o.s)&&!state.cashR)){tvr+=v;pv+=b0;cost+=c;dayPL+=dd}
+  return{s:o.s,man:isMan(o.s),nm:i.name||o.s,mo:i.mkt,b0:b0,sp:i.sp,bs:i.base,q:o.q,v:v,nat:i.nat,cs:i.cs,dp:i.pct,dpl:dd,tpl:v-c,tp:c?(v/c-1)*100:0}});
+ var tpl=tvr-cost+rl,base=cost+sb0,pl=V?tpl:dayPL,pp=V?(base?tpl/base*100:0):(pv?dayPL/pv*100:0);
  document.getElementById("val").textContent=eur(tv);
  var sa=document.getElementById("spl"),sb=document.getElementById("spp");
  sa.textContent=sgn(pl)+eur(Math.abs(pl));sa.className="s "+cls(pl);
@@ -400,16 +405,20 @@ function toast(m,snap){undo=snap;$("tmsg").textContent=m;$("toast").hidden=false
 $("tund").onclick=function(){if(!undo)return;state.lots=undo;undo=null;agg();save();$("toast").hidden=true;if(REAL)loadAll().then(refresh).catch(refresh);else refresh()};
 function refresh(){render();if(!$("detv").hidden){if(!state.pos.some(function(p){return p.s===dv.s}))closeL("detv");else renderDetail()}}
 function isSell(){return fm.m==="sell"||(fm.m==="edit"&&state.lots[fm.i].k==="s")}
-function ov(m,s,i){
- fm={m:m,s:s,i:i};var l=m==="edit"?state.lots[i]:null,sl=isSell(),dt=$("dt"),cp=s?price(s,N-1):0;
- $("ftit").textContent=m==="new"?"Nuova posizione":m==="buy"?"Aggiungi acquisto":m==="sell"?"Registra vendita":sl?"Modifica vendita":"Modifica acquisto";
- $("lpr").textContent=sl?"Prezzo di vendita (€)":"Prezzo di acquisto (€)";$("ldt").textContent=sl?"Data di vendita":"Data di acquisto";
- var si=$("s");si.readOnly=m!=="new";si.value=s||"";
+function ov(m,s,i){fill(m,s,i);openL("addv")}
+function fill(m,s,i){
+ fm={m:m,s:s,i:i};var man=m==="newm"||!!(s&&isMan(s)),l=m==="edit"?state.lots[i]:null,sl=isSell(),dt=$("dt"),nw=m==="new"||m==="newm",cp=s&&!man?price(s,N-1):0;
+ $("ftit").textContent=m==="new"?"Nuova posizione":m==="newm"?"Nuovo importo manuale":m==="buy"?(man?"Aggiungi importo":"Aggiungi acquisto"):m==="sell"?(man?"Preleva importo":"Registra vendita"):sl?(man?"Modifica prelievo":"Modifica vendita"):(man?"Modifica versamento":"Modifica acquisto");
+ $("lpr").textContent=sl?"Prezzo di vendita (€)":"Prezzo di acquisto (€)";$("ldt").textContent=man?(sl?"Data del prelievo":"Data del versamento"):(sl?"Data di vendita":"Data di acquisto");
+ $("lq").textContent=man?"Importo (€)":"Quantità";$("lti").textContent=m==="newm"?"Nome":"Titolo";
+ $("lcw").style.display=man?"none":"";$("ftype").style.display=nw?"":"none";$("ft1").setAttribute("aria-pressed",m==="new");$("ft2").setAttribute("aria-pressed",m==="newm");
+ var si=$("s");si.readOnly=!nw;si.placeholder=m==="newm"?"Es. BTP Valore 2030":"Cerca per nome o ticker";si.value=nw?"":(man?(state.man[s]||s):s);
  $("q").value=l?String(l.q).replace(".",","):"";
- $("c").value=l?String(l.c).replace(".",","):(m==="new"?"":cp.toFixed(2).replace(".",","));
+ $("c").value=man?"1":(l?String(l.c).replace(".",","):(nw?"":cp.toFixed(2).replace(".",",")));
  dt.max=today();dt.value=l?l.d:today();
- $("err").textContent="";$("sug").innerHTML="";sel="";$("fdel").hidden=m!=="edit";
- openL("addv")}
+ $("err").textContent="";$("sug").innerHTML="";sel="";$("fdel").hidden=m!=="edit"}
+$("ft1").onclick=function(){fill("new")};
+$("ft2").onclick=function(){fill("newm")};
 $("addb").onclick=function(){ov("new")};
 $("canc").onclick=function(){closeL("addv")};
 $("s").oninput=function(){var q=this.value.trim(),box=$("sug");sel="";clearTimeout(tm);if(fm.m!=="new"||q.length<2){box.innerHTML="";return}
@@ -418,14 +427,15 @@ $("s").oninput=function(){var q=this.value.trim(),box=$("sug");sel="";clearTimeo
   if($("s").value.trim()===q)box.innerHTML=h}).catch(function(){})},250)};
 $("sug").onclick=function(e){var b=e.target.closest("button");if(!b)return;var v=b.getAttribute("data-s");$("s").value=v;sel=v;this.innerHTML="";$("q").focus()};
 $("save").onclick=function(){
- var s=fm.m==="new"?$("s").value.trim().toUpperCase():fm.s,q=num($("q").value),c=num($("c").value),d=$("dt").value,er=$("err"),k=isSell()?"s":"b";
- if(!/^[A-Z0-9.^=-]{1,12}$/.test(s)){er.textContent="Scegli un titolo dall’elenco o inserisci un ticker valido.";return}
- if(!(q>0)||!(c>0)){er.textContent="Quantità e prezzo devono essere maggiori di zero.";return}
+ var man=fm.m==="newm"||!!(fm.s&&isMan(fm.s)),nm=$("s").value.trim().slice(0,40),s=fm.m==="new"?$("s").value.trim().toUpperCase():fm.s,q=num($("q").value),c=man?1:num($("c").value),d=$("dt").value,er=$("err"),k=isSell()?"s":"b";
+ if(fm.m==="newm"){if(!nm){er.textContent="Dai un nome all’importo, ad esempio BTP Valore 2030.";return}s=newCash()}
+ else if(!/^[A-Z0-9.^=-]{1,12}$/.test(s)){er.textContent="Scegli un titolo dall’elenco o inserisci un ticker valido.";return}
+ if(!(q>0)||!(c>0)){er.textContent=man?"L’importo deve essere maggiore di zero.":"Quantità e prezzo devono essere maggiori di zero.";return}
  if(!/^\d{4}-\d{2}-\d{2}$/.test(d)||d>today()){er.textContent="Inserisci una data valida, non futura.";return}
  var nl=state.lots.slice(),op={s:s,d:d,q:q,c:c,k:k};
  if(fm.m==="edit")nl[fm.i]=op;else nl.push(op);
  if(!valid(nl)){er.textContent="Operazione non valida: la quantità venduta supererebbe quella posseduta in quella data.";return}
- var go=function(){state.lots=nl;agg();save();closeL("addv");refresh()};
+ var go=function(){if(fm.m==="newm")state.man[s]=nm;state.lots=nl;agg();save();closeL("addv");refresh()};
  if(fm.m!=="new"||!REAL){go();return}
  er.textContent="Verifico il ticker…";
  loadAll(s).then(function(){er.textContent="";go()}).catch(function(){er.textContent="Ticker non trovato su Yahoo: "+s+"."})};
@@ -451,6 +461,7 @@ $("ngr").onclick=function(){var n=(prompt("Nome del nuovo gruppo")||"").trim();i
 $("dgrp").onchange=function(){var v=this.value;if(v==="__new"){var n=(prompt("Nome del nuovo gruppo")||"").trim().slice(0,40);if(!n){this.value=gid(dv.s);return}v=addGroup(n)}state.gmap[dv.s]=v;save();dv.gs="";refresh()};
 $("srt").onclick=function(){state.sort=state.sort==="r"?"m":"r";if(state.sort==="r")reo=false;save();render()};
 $("reo").onclick=function(){reo=!reo;render()};
+$("cashr").checked=!!state.cashR;$("cashr").onchange=function(){state.cashR=this.checked;save();refresh()};
 $("dback").onclick=function(){closeL("detv")};
 (function(){var P=window.Capacitor&&window.Capacitor.Plugins,A=P&&P.App;if(A&&A.addListener)A.addListener("backButton",function(){if(!$("addv").hidden)closeL("addv");else if(!$("detv").hidden)closeL("detv");else if(A.exitApp)A.exitApp()})})();
 $("dbuy").onclick=function(){ov("buy",dv.s)};
@@ -461,15 +472,16 @@ $("ddel").onclick=function(){if(!confirm("Eliminare "+dv.s+" e tutte le sue oper
 function renderDetail(){
  var s=dv.s,o=state.pos.filter(function(p){return p.s===s})[0],a=state.all.filter(function(p){return p.s===s})[0];
  if(!o){closeL("detv");return}
- var i=pi(s),p=price(s,N-1),v=o.q*p,ul=v-o.q*o.c,up=o.c?(p/o.c-1)*100:0,r=a?a.r:0;
- $("dhead").innerHTML='<div class="nm2">'+esc(i.name||s)+'</div><small class="mut">'+esc(s)+(opn(i.mkt)===null?"":" · "+mkd(i.mkt)+(opn(i.mkt)?"Mercato aperto":"Mercato chiuso"))+'</small><div class="big">'+fmt(i.nat,2)+" "+i.cs+' <span class="pc '+cls(i.pct)+'">'+pct(i.pct)+'</span></div>';
+ var man=isMan(s),i=pi(s),p=price(s,N-1),v=o.q*p,ul=v-o.q*o.c,up=o.c?(p/o.c-1)*100:0,r=a?a.r:0;
+ $("dhead").innerHTML=man?'<div class="nm2">'+esc(state.man[s]||s)+'</div><small class="mut">Valore fisso · andamento non tracciato</small><div class="big">'+eur(v)+'</div>':'<div class="nm2">'+esc(i.name||s)+'</div><small class="mut">'+esc(s)+(opn(i.mkt)===null?"":" · "+mkd(i.mkt)+(opn(i.mkt)?"Mercato aperto":"Mercato chiuso"))+'</small><div class="big">'+fmt(i.nat,2)+" "+i.cs+' <span class="pc '+cls(i.pct)+'">'+pct(i.pct)+'</span></div>';
  var row=function(l,x,c){return'<div class="tot"><span>'+l+'</span><b class="s'+(c?" "+c:"")+'">'+x+'</b></div>'};
- $("dsum").innerHTML=row("Valore",eur(v))+row("Quantità","x"+qf(o.q))+row("Prezzo medio",eur(o.c))+row("Profitto/perdita",sgn(ul)+eur(Math.abs(ul)),cls(ul))+row("Variazione",pct(up),cls(ul))+(Math.abs(r)>=.005?row("Profitto realizzato",sgn(r)+eur(Math.abs(r)),cls(r)):"");
+ $("dsum").innerHTML=man?row("Importo",eur(v)):row("Valore",eur(v))+row("Quantità","x"+qf(o.q))+row("Prezzo medio",eur(o.c))+row("Profitto/perdita",sgn(ul)+eur(Math.abs(ul)),cls(ul))+row("Variazione",pct(up),cls(ul))+(Math.abs(r)>=.005?row("Profitto realizzato",sgn(r)+eur(Math.abs(r)),cls(r)):"");
  var gs=$("dgrp"),sg=state.groups.map(function(g){return g.id+g.n}).join("|");if(dv.gs!==sg||dv.g2!==s){gs.innerHTML='<option value="">Nessun gruppo</option>'+state.groups.map(function(g){return'<option value="'+g.id+'">'+esc(g.n)+'</option>'}).join("")+'<option value="__new">+ Nuovo gruppo…</option>';dv.gs=sg;dv.g2=s}gs.value=gid(s);
  var ix=state.lots.map(function(l,j){return{l:l,j:j}}).filter(function(x){return x.l.s===s}).sort(function(a,b){return(b.l.d||"").localeCompare(a.l.d||"")||b.j-a.j});
- $("dops").innerHTML=ix.map(function(x){var l=x.l;return'<div class="op" data-i="'+x.j+'"><div><b>'+(l.k==="s"?"Vendita":"Acquisto")+'</b><small>'+(l.d?dmy(l.d):"Data non indicata")+'</small></div><div class="r">x'+qf(l.q)+'</div><div class="r">'+eur(l.c)+'</div></div>'}).join("");
+ $("dops").innerHTML=ix.map(function(x){var l=x.l;return'<div class="op" data-i="'+x.j+'"><div><b>'+(l.k==="s"?(man?"Prelievo":"Vendita"):(man?"Versamento":"Acquisto"))+'</b><small>'+(l.d?dmy(l.d):"Data non indicata")+'</small></div>'+(man?'<div></div><div class="r">'+eur(l.q)+'</div>':'<div class="r">x'+qf(l.q)+'</div><div class="r">'+eur(l.c)+'</div>')+'</div>'}).join("");
  chips("dpd",PERS.map(function(x){return[x,x]}),dv.pd,function(x){dv.pd=x;dv.k=""},renderDetail);
- dchart()}
+ $("dpd").style.display=man?"none":"";$("dchc").style.display=man?"none":"";$("dbuy").textContent=man?"Aggiungi importo":"Aggiungi acquisto";$("dsell").textContent=man?"Preleva importo":"Registra vendita";
+ if(!man)dchart()}
 function msg(t){return'<text x="170" y="85" text-anchor="middle" fill="var(--mut)" font-size="12">'+t+'</text>'}
 function yj(s,q){return fetch("https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(s)+"?"+q,{headers:{"User-Agent":UA}}).then(function(r){if(!r.ok)throw new Error(s);return r.json()}).then(function(j){var x=j.chart.result[0],c=x.indicators.quote[0].close,p=[];(x.timestamp||[]).forEach(function(t,i){if(c[i]!=null)p.push([t,c[i]])});return{p:p,m:x.meta}})}
 function fetchSeries(s,pd){var k=s+"|"+pd,c=SC[k];if(c&&Date.now()-c.t<60000)return Promise.resolve(c.v);var g=RG[pd],st=0,q;
@@ -507,17 +519,18 @@ function paintD(v,s,pd){
  h+='<text x="'+(L+2)+'" y="'+(Number(yb)-4)+'" font-size="10" fill="var(--mut)">'+fmt(b,2)+'</text>';svg.innerHTML=h;
  $("dchg").innerHTML='<span class="pc '+c+'">'+pct((last/b-1)*100)+'</span> <small class="mut">'+(pd==="1G"?"oggi":"nel periodo")+'</small>';}
 function csvNum(x){return String(+x.toFixed(6)).replace(".",",")}
-function toCsv(){return["ticker;data;tipo;quantita;prezzo_eur"].concat(sorted(state.lots).map(function(l){return[l.s,l.d||"",l.k==="s"?"vendita":"acquisto",csvNum(l.q),csvNum(l.c)].join(";")})).join("\r\n")+"\r\n"}
+function toCsv(){return["ticker;data;tipo;quantita;prezzo_eur;nome"].concat(sorted(state.lots).map(function(l){return[l.s,l.d||"",l.k==="s"?"vendita":"acquisto",csvNum(l.q),csvNum(l.c),isMan(l.s)?(state.man[l.s]||""):""].join(";")})).join("\r\n")+"\r\n"}
 function parseCsv(t){
  var L=t.replace(/^\uFEFF/,"").split(/\r?\n/).filter(function(x){return x.trim()});if(!L.length)return{rows:[]};
- var sep=L[0].indexOf(";")>=0?";":",",h=L[0].toLowerCase().split(sep).map(function(x){return x.trim()}),hd=h.indexOf("ticker")>=0,ix={s:0,d:1,t:2,q:3,c:4};
- if(hd){ix={s:h.indexOf("ticker"),d:h.indexOf("data"),t:h.indexOf("tipo"),q:h.findIndex(function(x){return x.indexOf("quant")===0}),c:h.findIndex(function(x){return x.indexOf("prezzo")===0})};L=L.slice(1)}
- var out=[];
+ var sep=L[0].indexOf(";")>=0?";":",",h=L[0].toLowerCase().split(sep).map(function(x){return x.trim()}),hd=h.indexOf("ticker")>=0,ix={s:0,d:1,t:2,q:3,c:4,n:5};
+ if(hd){ix={s:h.indexOf("ticker"),d:h.indexOf("data"),t:h.indexOf("tipo"),q:h.findIndex(function(x){return x.indexOf("quant")===0}),c:h.findIndex(function(x){return x.indexOf("prezzo")===0}),n:h.indexOf("nome")};L=L.slice(1)}
+ var out=[],man={};
  for(var j=0;j<L.length;j++){var c=L[j].split(sep).map(function(x){return x.trim()}),s=(c[ix.s]||"").toUpperCase(),d=c[ix.d]||"",k=/^[vs]/i.test(c[ix.t]||"")?"s":"b",q=num(c[ix.q]||""),p=num(c[ix.c]||""),m=d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if(m)d=m[3]+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0");
   if(!/^[A-Z0-9.^=-]{1,12}$/.test(s)||!((d===""&&k==="b")||(/^\d{4}-\d{2}-\d{2}$/.test(d)&&d<=today()))||!(q>0)||!(p>0))return{err:"Riga "+(j+(hd?2:1))+" non valida: "+L[j]};
+  if(isMan(s))man[s]=(c[ix.n]||"").slice(0,40)||"Liquidità";
   out.push({s:s,d:d,q:q,c:p,k:k})}
- return{rows:out}}
+ return{rows:out,man:man}}
 $("exp").onclick=function(){
  if(!state.lots.length){alert("Non ci sono operazioni da esportare.");return}
  var csv=toCsv(),P=window.Capacitor&&window.Capacitor.Plugins;
@@ -530,7 +543,7 @@ $("imp").onchange=function(){var f=this.files[0];this.value="";if(!f)return;var 
  if(!x.rows.length){alert("Il file non contiene operazioni.");return}
  if(!valid(x.rows)){alert("Il file non è coerente: una vendita supera la quantità posseduta in quella data.");return}
  if(!confirm("Importare "+x.rows.length+" operazioni? I dati attuali verranno sostituiti."))return;
- var old=state.lots;state.lots=x.rows;agg();
+ var old=state.lots;Object.assign(state.man,x.man||{});state.lots=x.rows;agg();
  var fin=function(){save();refresh();toast("Importate "+x.rows.length+" operazioni",old)};
  if(!REAL){fin();return}
  loadAll().then(fin).catch(function(){state.lots=old;agg();alert("Importazione annullata: un ticker del file non è stato trovato su Yahoo.")})};rd.readAsText(f)};
