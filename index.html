@@ -213,9 +213,9 @@ function yf(sym){
   x.timestamp.forEach(function(t,i){if(q[i]==null)return;var d=new Date(t*1000).toISOString().slice(0,10);c[d]=q[i];a[d]=ad[i]==null?q[i]:ad[i]});
   return{c:c,a:a,last:x.meta.regularMarketPrice,cur:x.meta.currency,nm:x.meta.longName||x.meta.shortName||"",mk:mkm(x.meta)}})}
 function yfi(sym){
- return fetch("https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(sym)+"?range=1d&interval=5m",{headers:{"User-Agent":"Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/124 Mobile Safari/537.36"}}).then(function(r){if(!r.ok)throw new Error(sym);return r.json()}).then(function(j){
+ return fetch("https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(sym)+"?range=5d&interval=5m",{headers:{"User-Agent":"Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/124 Mobile Safari/537.36"}}).then(function(r){if(!r.ok)throw new Error(sym);return r.json()}).then(function(j){
   var x=j.chart.result[0],q=x.indicators.quote[0].close,p=[];
-  (x.timestamp||[]).forEach(function(t,i){if(q[i]!=null)p.push([t,q[i]])});return p}).catch(function(){return[]})}
+  (x.timestamp||[]).forEach(function(t,i){if(q[i]!=null)p.push([t,q[i]])});p.meta=x.meta||{};return p}).catch(function(){return[]})}
 function cur(c){return c==="GBp"||c==="GBX"?"GBP":c}
 function kf(c){return c==="GBp"||c==="GBX"?.01:1}
 function ecb(u){return ecbQ(u,"lastNObservations=300")}
@@ -231,8 +231,8 @@ function loadAll(extra){
  return Promise.all(jobs.map(yf)).then(function(R){
   var cs={};R.forEach(function(r){var u=cur(r.cur);if(u!=="EUR")cs[u]=1});
   var cl=Object.keys(cs);
-  return Promise.all([Promise.all(cl.map(function(u){return fxPrim(u)})),Promise.all(syms.map(yfi))]).then(function(w){return[R,cl,w[0],w[1]]})
- }).then(function(z){var R=z[0],cl=z[1],F=z[2],IT=z[3];
+  return Promise.all([Promise.all(cl.map(function(u){return fxPrim(u)})),Promise.all(syms.map(yfi)),Promise.all(cl.map(function(u){return state.fxSrc==="yh"?fxIntraday(u):Promise.resolve([])}))]).then(function(w){return[R,cl,w[0],w[1],w[2]]})
+ }).then(function(z){var R=z[0],cl=z[1],F=z[2],IT=z[3],FXI=z[4],FXIT={};cl.forEach(function(u,i){FXIT[u]=FXI[i]||[]});
   var set={};R.forEach(function(r){Object.keys(r.c).forEach(function(d){set[d]=1})});
   var ax=Object.keys(set).sort().slice(-253);
   function al(m){var out=[],l=null;ax.forEach(function(d){if(m[d]!=null)l=m[d];out.push(l)});var f=out.find(function(v){return v!=null});return out.map(function(v){return v==null?f:v})}
@@ -244,7 +244,20 @@ function loadAll(extra){
    ni[s]={nat:cu,cs:SY[r.cur]||r.cur,pct:(cu/pr-1)*100,pe:pr*k/fp,name:r.nm||s,sp:IT[i]||[],base:pr,mkt:r.mk,cc:r.cur}});
   syms.forEach(function(s,i){var r=R[i],ks=Object.keys(r.c).sort();if(r.last)r.c[ks[ks.length-1]]=r.last;nc[s]=toE(al(r.c),r.cur)});
   bk.forEach(function(k,i){var r=R[syms.length+i];nc[k]=toE(al(r.a),r.cur)});
-  cache=nc;INFO=ni;FXS=FXN;N=ax.length;AXD=ax;REAL=true})}
+  /* Per il controvalore corrente: abbina il cambio intraday all'ultimo timestamp valido della quotazione del singolo titolo. */
+  var currentFX={};
+  syms.forEach(function(s,i){
+   var r=R[i],u=cur(r.cur);if(u==="EUR")return;
+   var pts=IT[i]||[],st=(pts.meta&&pts.meta.regularMarketTime)|| (pts.length?pts[pts.length-1][0]:null);
+   var fp=FXIT[u]||[],chosen=null;
+   if(state.fxSrc==="yh"&&st!=null){for(var j=0;j<fp.length;j++){if(fp[j][0]<=st)chosen=fp[j];else break}}
+   var rate=chosen?chosen[1]:rateAt(u,dOf(Math.floor((st||Date.now()/1000))),FXN);
+   if(!(rate>0))rate=1;
+   currentFX[s]={rate:rate,ts:chosen?chosen[0]:null,stockTs:st||null};
+   var kk=kf(r.cur),quote=r.last||r.c[Object.keys(r.c).sort().slice(-1)[0]];
+   if(state.fxSrc==="yh"&&quote!=null&&nc[s]&&nc[s].length)nc[s][nc[s].length-1]=quote*kk/rate;
+  });
+  cache=nc;INFO=ni;FXS=FXN;FXCURRENT=currentFX;N=ax.length;AXD=ax;REAL=true})}
 function price(s,i){if(isMan(s))return 1;var p=serie(s);return i===N-1&&!REAL?p[i]*(1+(live[s]||0)):p[i]}
 function grp(s){return s.replace(/\B(?=(\d{3})+(?!\d))/g,".")}
 function fmt(x,d){var n=Math.abs(x).toFixed(d).split(".");return(x<0&&+n.join(".")!==0?"−":"")+grp(n[0])+(n[1]?","+n[1]:"")}
@@ -305,7 +318,7 @@ function listHtml(rows,V){
  }else h=sr.map(function(r){return rowHtml(r,V)}).join("");
  if(sr.some(function(r){return opn(r.mo)!==null}))h+='<p class="note"><i class="mkt on"></i>mercato aperto<i class="mkt off" style="margin-left:14px"></i>mercato chiuso</p>';
  return h}
-var SET={},MT=0,MK="",FXS={};
+var SET={},MT=0,MK="",FXS={},FXCURRENT={};
 function mkFx(c){return{k:Object.keys(c).sort(),v:c}}
 function rateAt(u,ds,F){if(u==="EUR")return 1;var f=(F||FXS)[u];if(!f||!f.k.length)return 1;if(ds<f.k[0])return f.v[f.k[0]];var lo=0,hi=f.k.length-1;while(lo<hi){var m=(lo+hi+1)>>1;if(f.k[m]<=ds)lo=m;else hi=m-1}return f.v[f.k[lo]]}
 function dOf(t){return new Date(t*1000).toISOString().slice(0,10)}
@@ -490,7 +503,51 @@ function r6(x){return x.toFixed(6).replace(".",",")}
 function fxHist(u,sd){
  if(state.fxSrc==="yh")return yj("EUR"+u+"=X","period1="+Math.floor(Date.parse(sd+"T00:00:00Z")/1000)+"&period2="+(Math.floor(Date.now()/1000)+86400)+"&interval=1d").then(function(a){var c={};a.p.forEach(function(x){c[dOf(x[0])]=x[1]});if(!Object.keys(c).length)throw new Error(u);return{c:c}});
  return ecbQ(u,"startPeriod="+sd)}
-function fxPrim(u){return state.fxSrc==="yh"?yf("EUR"+u+"=X").catch(function(){return ecb(u)}):ecb(u).catch(function(){return yf("EUR"+u+"=X")})}
+function fxIntraday(u){
+ var sym="EUR"+u+"=X";
+ return fetch("https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(sym)+"?range=5d&interval=5m")
+  .then(function(r){if(!r.ok)throw new Error(sym);return r.json()})
+  .then(function(j){var x=j.chart.result[0],q=x.indicators.quote[0].close,a=[];(x.timestamp||[]).forEach(function(t,i){if(q[i]!=null)a.push([t,q[i]])});return a})
+  .catch(function(){return[]});
+}
+function fxPrim(u){
+ if(state.fxSrc!=="yh")return ecb(u).catch(function(){return yf("EUR"+u+"=X")});
+ var sym="EUR"+u+"=X";
+ /* Yahoo non offre un'impostazione standard per congelare il cambio in una fascia oraria:
+    si usa la serie intraday e si applica la finestra richiesta, in ora locale italiana. */
+ return Promise.all([
+  yf(sym),
+  fetch("https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(sym)+"?range=5d&interval=5m")
+   .then(function(r){if(!r.ok)throw new Error(sym);return r.json()})
+   .then(function(j){
+    var x=j.chart.result[0],q=x.indicators.quote[0].close,a=[];
+    (x.timestamp||[]).forEach(function(t,i){if(q[i]!=null)a.push([t,q[i]])});
+    if(!a.length)throw new Error("Nessun dato intraday per "+sym);
+    var now=new Date(),day=now.getDay(),mins=now.getHours()*60+now.getMinutes();
+    var liveWindow=day>=1&&day<=5&&mins>=540&&mins<1320;
+    var cutoff=new Date(now);cutoff.setHours(22,0,0,0);
+    if(liveWindow){
+     var today=a.filter(function(p){var d=new Date(p[0]*1000);return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth()&&d.getDate()===now.getDate()&&d.getHours()>=9&&d.getTime()<=now.getTime()});
+     if(today.length)return today[today.length-1][1];
+    }
+    /* Fuori fascia: ultimo dato disponibile entro le 22:00 dell'ultimo giorno feriale. */
+    var target=null;
+    a.forEach(function(p){
+     var d=new Date(p[0]*1000),w=d.getDay(),m=d.getHours()*60+d.getMinutes();
+     if(w>=1&&w<=5&&m<=1320&&d.getTime()<=now.getTime()){
+      if(!target||p[0]>target[0])target=p;
+     }
+    });
+    if(!target)throw new Error("Nessuna chiusura intraday disponibile");
+    return target[1];
+   }).catch(function(){return null})
+ ]).then(function(z){
+  var daily=z[0],spot=z[1];
+  if(spot==null)return daily;
+  daily.last=spot;
+  return daily;
+ }).catch(function(){return yf(sym).catch(function(){return ecb(u)})});
+}
 function chist(){
  var h=(state.cmp||[]).slice().reverse().slice(0,15).map(function(e){var best=null,t=new Date(e.t);
   e.c.forEach(function(c){var d=Math.abs(c[1]-e.imp);if(!best||d<best.d)best={n:c[0],d:d,r:c[1]}});
@@ -535,9 +592,9 @@ function renderDetail(){
  $("dhead").innerHTML=man?'<div class="nm2">'+esc(state.man[s]||s)+'</div><small class="mut">Valore fisso · andamento non tracciato</small><div class="big">'+eur(v)+'</div>':'<div class="nm2">'+esc(i.name||s)+'</div><small class="mut">'+esc(s)+(opn(i.mkt)===null?"":" · "+mkd(i.mkt)+(opn(i.mkt)?"Mercato aperto":"Mercato chiuso"))+'</small><div class="big">'+fmt(i.nat,2)+" "+i.cs+' <span class="pc '+cls(i.pct)+'">'+pct(i.pct)+'</span></div>';
  var row=function(l,x,c){return'<div class="tot"><span>'+l+'</span><b class="s'+(c?" "+c:"")+'">'+x+'</b></div>'};
  var cc=i.cc||"EUR",u=cur(cc),k=kf(cc),G=FXS[u],ne=!man&&u!=="EUR"&&!!G&&G.k.length>0,F=ne?fxFor(u,s):null,an=0,fd="",rn=1;
- if(ne){an=avgNat(s,u,k,F);fd=G.k[G.k.length-1];rn=G.v[fd]}
+ if(ne){an=avgNat(s,u,k,F);fd=G.k[G.k.length-1];rn=(state.fxSrc==="yh"&&FXCURRENT[s]&&FXCURRENT[s].rate)||G.v[fd]}
  var row2=function(l,x){return'<div class="tot"><span>'+l+'</span><b class="s sm">'+x+'</b></div>'};
- $("dsum").innerHTML=man?row("Importo",eur(v)):row("Valore",eur(v))+row("Quantità","x"+qf(o.q))+(ne?row2("Prezzo medio",eur(o.c)+" ("+fmt(an,2)+" "+i.cs+")")+row2("Prezzo attuale",eur(p)+" ("+fmt(i.nat,2)+" "+i.cs+")")+row2((state.fxSrc==="yh"?"Cambio Yahoo (mercato)":"Cambio BCE ("+dm(fd)+")"),"1 € = "+r4(rn)+" "+i.cs):row("Prezzo medio",eur(o.c)))+row("Profitto/perdita",sgn(ul)+eur(Math.abs(ul)),cls(ul))+row("Variazione",pct(up),cls(ul))+(Math.abs(r)>=.005?row("Profitto realizzato",sgn(r)+eur(Math.abs(r)),cls(r)):"")+(ne?'<p class="note" style="margin-top:8px">Prezzo medio in '+i.cs+': i tuoi prezzi in € convertiti con il cambio '+(state.fxSrc==="yh"?"Yahoo":"BCE")+' del giorno di ciascun acquisto.</p>':"");
+ $("dsum").innerHTML=man?row("Importo",eur(v)):row("Valore",eur(v))+row("Quantità","x"+qf(o.q))+(ne?row2("Prezzo medio",eur(o.c)+" ("+fmt(an,2)+" "+i.cs+")")+row2("Prezzo attuale",eur(p)+" ("+fmt(i.nat,2)+" "+i.cs+")")+row2((state.fxSrc==="yh"?"Cambio Yahoo (timestamp titolo)":"Cambio BCE ("+dm(fd)+")"),"1 € = "+r4(rn)+" "+i.cs+(state.fxSrc==="yh"&&FXCURRENT[s]&&FXCURRENT[s].stockTs?" · "+dm(dOf(FXCURRENT[s].stockTs))+" "+hm(FXCURRENT[s].stockTs):"")):row("Prezzo medio",eur(o.c)))+row("Profitto/perdita",sgn(ul)+eur(Math.abs(ul)),cls(ul))+row("Variazione",pct(up),cls(ul))+(Math.abs(r)>=.005?row("Profitto realizzato",sgn(r)+eur(Math.abs(r)),cls(r)):"")+(ne?'<p class="note" style="margin-top:8px">Prezzo medio in '+i.cs+': i tuoi prezzi in € convertiti con il cambio '+(state.fxSrc==="yh"?"Yahoo":"BCE")+' del giorno di ciascun acquisto.</p>':"");
  var gs=$("dgrp"),sg=state.groups.map(function(g){return g.id+g.n}).join("|");if(dv.gs!==sg||dv.g2!==s){gs.innerHTML='<option value="">Nessun gruppo</option>'+state.groups.map(function(g){return'<option value="'+g.id+'">'+esc(g.n)+'</option>'}).join("")+'<option value="__new">+ Nuovo gruppo…</option>';dv.gs=sg;dv.g2=s}gs.value=gid(s);
  var ix=state.lots.map(function(l,j){return{l:l,j:j}}).filter(function(x){return x.l.s===s}).sort(function(a,b){return(b.l.d||"").localeCompare(a.l.d||"")||b.j-a.j});
  $("dops").innerHTML=ix.map(function(x){var l=x.l;return'<div class="op" data-i="'+x.j+'"><div><b>'+(l.k==="s"?(man?"Prelievo":"Vendita"):(man?"Versamento":"Acquisto"))+'</b><small>'+(l.d?dmy(l.d):"Data non indicata")+(ne&&F?" · cambio "+r4(rateAt(u,l.d||"0000-00-00",F)):"")+'</small></div>'+(man?'<div></div><div class="r">'+eur(l.q)+'</div>':'<div class="r">x'+qf(l.q)+'</div><div class="r">'+eur(l.c)+(ne&&F?'<small>'+fmt(l.c*rateAt(u,l.d||"0000-00-00",F)/k,2)+' '+i.cs+'</small>':'')+'</div>')+'</div>'}).join("");
