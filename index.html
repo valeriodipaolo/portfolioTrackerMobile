@@ -316,7 +316,7 @@ function dailySer(){var pd=state.pd,st=0;
  if(pd==="1G"||pd==="5G"||pd==="5A"||pd==="CUSTOM")return null;
  if(pd==="TUTTO"){var e=earliest();if(e&&AXD.length&&e<AXD[0])return null}else st=stIdx(pd);
  var bms={};state.bms.forEach(function(k){var a=bser(k);bms[k]=function(i){return a[i]}});
- var r=twrG(AXD,price,bms,st);r.lab=r.I.length>1?[dm(AXD[r.s0]),dm(AXD[N-1])]:["",""];return r}
+ var r=twrG(AXD,price,bms,st);r.lab=r.I.length>1?[dm(pdRange().from),dm(AXD[N-1])]:["",""];return r}
 function buildSet(pd){
  var syms=state.all.map(function(o){return o.s}).filter(function(s){return !isMan(s)}),jobs=syms.concat(state.bms.map(function(k){return YB[k]})),key=pd+"|"+(pd==="CUSTOM"?(state.pdFrom+"|"+state.pdTo):"")+"|"+jobs.join(",")+"|"+state.lots.length,c=SET[key];
  if(c&&Date.now()-c.t<60000)return Promise.resolve(c.v);
@@ -351,9 +351,9 @@ function buildSet(pd){
     return out.map(function(v){return v===null?(f===null?0:f):v})});
    var px=function(s,i){return isMan(s)?1:V[syms.indexOf(s)][i]},bms={};
    state.bms.forEach(function(k,b){bms[k]=function(i){return V[syms.length+b][i]}});
-   var stB=0;if(!intra){var pStart=pd==="CUSTOM"?pdRange(pd).from:pd==="5A"?pdStartFor(pd,AXD.length?AXD[N-1]:today()):earliest();stB=D.length-1;for(var si=0;si<D.length;si++){if(D[si]>=pStart){stB=si;break}}}if(D.length-stB<2&&stB>0)stB--; // intervallo di 1 giorno: includi il giorno prima come base, altrimenti il grafico avrebbe 1 solo punto
+   var stB=0;if(!intra){var pStart=pd==="CUSTOM"?pdRange(pd).from:pd==="5A"?pdStartFor(pd,AXD.length?AXD[N-1]:today()):earliest();stB=D.length-1;for(var si=0;si<D.length;si++){if(D[si]>=pStart){stB=si;break}}}if(stB>0)stB--; // base 100 = giorno prima di Da, stessa base dei dati sotto: prima il grafico misurava da Da, i dati da giorno prima, e le % non coincidevano
    var r=twrG(D,px,bms,stB);
-   r.lab=intra?(pd==="1G"?[hm(T[1]),hm(T[T.length-1])]:[dm(D[1]),dm(D[D.length-1])]):[dm(D[Math.max(r.s0,0)]),dm(D[D.length-1])];
+   r.lab=intra?(pd==="1G"?[hm(T[1]),hm(T[T.length-1])]:[dm(D[1]),dm(D[D.length-1])]):[dm(pStart),dm(D[D.length-1])];
    SET[key]={t:Date.now(),v:r};return r})})}
 function paintMain(r){
  var cs=state.bms.map(function(k){return BMS[k].col}),Bs=state.bms.map(function(k){return r.B[k]});
