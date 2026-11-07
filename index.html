@@ -23,6 +23,7 @@ h1{font-size:1.1rem;margin:0;font-weight:600}
 .up{color:var(--up)}.dn{color:var(--dn)}
 .row{display:flex;gap:8px;overflow-x:auto;padding:12px 0 4px;scrollbar-width:none}
 .row::-webkit-scrollbar{display:none}
+.chip:disabled{opacity:.35;pointer-events:none}
 .chip{flex:none;border:1px solid var(--line);background:var(--surf);color:var(--ink);font:inherit;font-size:.85rem;padding:7px 13px;border-radius:99px;cursor:pointer}
 .chip[aria-pressed="true"]{background:var(--sel);color:var(--selt);border-color:var(--sel)}
 .chip:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--pf);outline-offset:2px}
@@ -123,7 +124,7 @@ select{font:inherit;font-size:16px;padding:9px;border:1px solid var(--line);bord
 <div id="detv" class="ov" hidden><div class="ovi">
 <div class="ovh"><button class="back" id="dback">‹ Indietro</button></div>
 <div id="dhead"></div>
-<div class="seg ei" id="dpd" role="group" aria-label="Periodo del grafico" style="margin-top:12px"></div><div id="dpdc" style="display:none;gap:8px;align-items:center;margin:8px 0"><label style="margin:0">Da <input type="date" id="dpdf"></label><label style="margin:0">A <input type="date" id="dpdt"></label></div>
+<div class="seg ei" id="dpd" role="group" aria-label="Periodo del grafico" style="margin-top:12px"></div>
 <div class="card" id="dchc"><div id="dchg"></div><svg id="dch" viewBox="0 0 340 170" role="img" aria-label="Andamento del prezzo del titolo"></svg></div>
 <div class="card" id="dsum"></div>
 <div class="card"><label style="margin-top:0"><span>Gruppo</span><select id="dgrp"></select></label></div>
@@ -301,14 +302,14 @@ function earliest(){var e=null;for(var i=0;i<state.lots.length;i++){var d=state.
 function stIdx(pd){var d=new Date();d.setUTCHours(0,0,0,0);var s=d;
  if(pd==="YTD")s=new Date(Date.UTC(d.getUTCFullYear(),0,1));else{s=new Date(d);s.setUTCMonth(s.getUTCMonth()-({"1M":1,"6M":6,"1A":12}[pd]||0))}
  var ds=s.toISOString().slice(0,10),i=0;for(var j=0;j<N;j++){if(AXD[j]<ds)i=j;else break}return i}
-function pdRange(pdArg){var td=AXD.length?AXD[N-1]:today(),pd=pdArg||state.pd,from, to=td; // pdArg = periodo del dettaglio quando diverso da quello principale // "oggi" = ultimo giorno di borsa, non il calendario (sabato/domenica)
+function pdStartFor(pd,td){if(pd==="TUTTO")return earliest()||(AXD.length?AXD[0]:td);if(pd==="YTD")return td.slice(0,4)+"-01-01";if(pd==="1G")return td;if(pd==="5G")return AXD.length?AXD[Math.max(0,N-5)]:td;if(pd==="CUSTOM")return state.pdFrom||td;var d=new Date(td+"T00:00:00Z");d.setUTCMonth(d.getUTCMonth()-({"1M":1,"6M":6,"1A":12,"5A":60}[pd]||0));return d.toISOString().slice(0,10)}
+function pdRange(pdArg,firstArg){var td=AXD.length?AXD[N-1]:today(),pd=pdArg||state.pd,first=firstArg!==undefined?firstArg:earliest(),from,to=td;
  if(pd==="CUSTOM"){from=state.pdFrom||td;to=state.pdTo||td;if(to>td)to=td;if(from>to){var x=from;from=to;to=x}}
- else if(pd==="TUTTO"){from=earliest()||(AXD.length?AXD[0]:td)}
- else if(pd==="YTD"){from=td.slice(0,4)+"-01-01"}
- else if(pd==="1G"){from=td}
- else if(pd==="5G"){from=AXD.length?AXD[Math.max(0,N-5)]:td}
- else{var d=new Date(td+"T00:00:00Z");d.setUTCMonth(d.getUTCMonth()-({"1M":1,"6M":6,"1A":12,"5A":60}[pd]||0));from=d.toISOString().slice(0,10)}
+ else from=pdStartFor(pd,td);
+ if(first&&from<first)from=first;
+ if(first&&to<first)to=first;
  if(from>to)from=to;return{from:from,to:to}}
+function pdDisabled(pd,first){if(!first||pd==="TUTTO"||pd==="CUSTOM")return false;var td=AXD.length?AXD[N-1]:today();return pdStartFor(pd,td)<first}
 function idxBefore(ds){var i=-1;for(var j=0;j<N;j++){if(AXD[j]<ds)i=j;else break}return i}
 function idxAtOrBefore(ds){var i=-1;for(var j=0;j<N;j++){if(AXD[j]<=ds)i=j;else break}return i}
 function dailySer(){var pd=state.pd,st=0;
@@ -350,7 +351,8 @@ function buildSet(pd){
     return out.map(function(v){return v===null?(f===null?0:f):v})});
    var px=function(s,i){return isMan(s)?1:V[syms.indexOf(s)][i]},bms={};
    state.bms.forEach(function(k,b){bms[k]=function(i){return V[syms.length+b][i]}});
-   var r=twrG(D,px,bms,0);
+   var stB=0;if(!intra){var pStart=pd==="CUSTOM"?pdRange(pd).from:pd==="5A"?pdStartFor(pd,AXD.length?AXD[N-1]:today()):earliest();stB=D.length-1;for(var si=0;si<D.length;si++){if(D[si]>=pStart){stB=si;break}}}
+   var r=twrG(D,px,bms,stB);
    r.lab=intra?(pd==="1G"?[hm(T[1]),hm(T[T.length-1])]:[dm(D[1]),dm(D[D.length-1])]):[dm(D[Math.max(r.s0,0)]),dm(D[D.length-1])];
    SET[key]={t:Date.now(),v:r};return r})})}
 function paintMain(r){
@@ -419,11 +421,12 @@ function chart(a,Bs,cs,lab){
  svg.innerHTML=h}
 function chips(id,items,cur,fn,af){
  var el=document.getElementById(id);el.innerHTML="";
- items.forEach(function(it){var b=document.createElement("button");b.className="chip";b.textContent=it[1];b.setAttribute("aria-pressed",it[0]===cur);b.onclick=function(){fn(it[0]);save();(af||draw)()};el.appendChild(b)})}
+ items.forEach(function(it){var b=document.createElement("button");b.className="chip";b.textContent=it[1];b.setAttribute("aria-pressed",it[0]===cur);if(it[2]){b.disabled=true;b.setAttribute("aria-disabled","true")}b.onclick=function(){fn(it[0]);save();(af||draw)()};el.appendChild(b)})}
 function draw(){
  bchips();
- chips("pds",PERS.map(function(p){return[p,PLBL[p]||p]}),state.pd,function(v){state.pd=v});
- var pc=$("pdc");if(pc){pc.style.display=state.pd==="CUSTOM"?"flex":"none";var f=$("pdf"),tt=$("pdt");if(f){f.value=state.pdFrom||"";f.onchange=function(){if(this.value){state.pdFrom=this.value;save();draw()}};}if(tt){tt.value=state.pdTo||"";tt.onchange=function(){if(this.value){state.pdTo=this.value;save();draw()}};}}
+ var _first=earliest();if(pdDisabled(state.pd,_first)){state.pd="TUTTO";save()}
+ chips("pds",PERS.map(function(p){return[p,PLBL[p]||p,pdDisabled(p,_first)]}),state.pd,function(v){state.pd=v});
+ var pc=$("pdc");if(pc){pc.style.display=state.pd==="CUSTOM"?"flex":"none";var _f=earliest();var f=$("pdf"),tt=$("pdt");if(f){f.min=_f||"";f.value=state.pdFrom||"";f.onchange=function(){if(this.value){if(_f&&this.value<_f)this.value=_f;state.pdFrom=this.value;save();draw()}};}if(tt){tt.min=_f||"";tt.max=AXD.length?AXD[N-1]:"";tt.value=state.pdTo||"";tt.onchange=function(){if(this.value){if(_f&&this.value<_f)this.value=_f;state.pdTo=this.value;save();draw()}};}}
  render()}
 var reo=false,sel="",tm=0,skipPop=0,fm={m:"new"},dv={s:"",pd:"1G",k:""},undo=null,tt=0;
 var RG={"1G":{r:"1d",i:"5m"},"5G":{r:"5d",i:"15m"},"1M":{m:1,i:"30m"},"6M":{m:6,i:"1d"},"YTD":{y:1,i:"1d"},"1A":{m:12,i:"1d"},"5A":{m:60,i:"1wk"},"TUTTO":{r:"max",i:"1mo"}},SC={};
@@ -516,15 +519,12 @@ function renderDetail(){
  var gs=$("dgrp"),sg=state.groups.map(function(g){return g.id+g.n}).join("|");if(dv.gs!==sg||dv.g2!==s){gs.innerHTML='<option value="">Nessun gruppo</option>'+state.groups.map(function(g){return'<option value="'+g.id+'">'+esc(g.n)+'</option>'}).join("")+'<option value="__new">+ Nuovo gruppo…</option>';dv.gs=sg;dv.g2=s}gs.value=gid(s);
  var ix=state.lots.map(function(l,j){return{l:l,j:j}}).filter(function(x){return x.l.s===s}).sort(function(a,b){return(b.l.d||"").localeCompare(a.l.d||"")||b.j-a.j});
  $("dops").innerHTML=ix.map(function(x){var l=x.l;return'<div class="op" data-i="'+x.j+'"><div><b>'+(l.k==="s"?(man?"Prelievo":"Vendita"):(man?"Versamento":"Acquisto"))+'</b><small>'+(l.d?dmy(l.d):"Data non indicata")+(ne&&F?" · cambio "+r4(rateAt(u,l.d||"0000-00-00",F)):"")+'</small></div>'+(man?'<div></div><div class="r">'+eur(l.q)+'</div>':'<div class="r">x'+qf(l.q)+'</div><div class="r">'+eur(l.c)+(ne&&F?'<small>'+fmt(l.c/rateAt(u,l.d||"0000-00-00",F)/k,2)+' '+i.cs+'</small>':'')+'</div>')+'</div>'}).join("");
- chips("dpd",PERS.map(function(x){return[x,PLBL[x]||x]}),dv.pd,function(x){dv.pd=x;dv.k=""},renderDetail);
- var dc=$("dpdc");if(dc){dc.style.display=dv.pd==="CUSTOM"?"flex":"none";var f=$("dpdf"),tt=$("dpdt");if(f){f.value=state.pdFrom||"";f.onchange=function(){if(this.value){state.pdFrom=this.value;dv.k="";save();renderDetail()}};}if(tt){tt.value=state.pdTo||"";tt.onchange=function(){if(this.value){state.pdTo=this.value;dv.k="";save();renderDetail()}};}}
+ chips("dpd",PERS.map(function(x){return[x,x]}),dv.pd,function(x){dv.pd=x;dv.k=""},renderDetail);
  $("dpd").style.display=man?"none":"";$("dchc").style.display=man?"none":"";$("dbuy").textContent=man?"Aggiungi importo":"Aggiungi acquisto";$("dsell").textContent=man?"Preleva importo":"Registra vendita";
  if(!man)dchart()}
 function msg(t){return'<text x="170" y="85" text-anchor="middle" fill="var(--mut)" font-size="12">'+t+'</text>'}
 function yj(s,q){return fetch("https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(s)+"?"+q,{headers:{"User-Agent":UA}}).then(function(r){if(!r.ok)throw new Error(s);return r.json()}).then(function(j){var x=j.chart.result[0],c=x.indicators.quote[0].close,p=[];(x.timestamp||[]).forEach(function(t,i){if(c[i]!=null)p.push([t,c[i]])});return{p:p,m:x.meta}})}
-function fetchSeries(s,pd){var k=s+"|"+pd+(pd==="CUSTOM"?"|"+state.pdFrom+"|"+state.pdTo:""),c=SC[k];if(c&&Date.now()-c.t<60000)return Promise.resolve(c.v);var g=RG[pd]||{},st=0,q;
- if(pd==="CUSTOM"){var rg=pdRange(pd);st=Math.floor(Date.parse(rg.from+"T00:00:00Z")/1000);var spanD=(Date.parse(rg.to+"T00:00:00Z")-Date.parse(rg.from+"T00:00:00Z"))/86400000;q="period1="+(st-9*86400)+"&period2="+(Math.floor(Date.parse(rg.to+"T00:00:00Z")/1000)+86400)+"&interval="+(spanD>2000?"1mo":spanD>180?"1wk":"1d")}
- else
+function fetchSeries(s,pd){var k=s+"|"+pd,c=SC[k];if(c&&Date.now()-c.t<60000)return Promise.resolve(c.v);var g=RG[pd],st=0,q;
  if(g.m||g.y){var d=new Date();d.setUTCHours(0,0,0,0);if(g.y)d=new Date(Date.UTC(d.getUTCFullYear(),0,1));else d.setUTCMonth(d.getUTCMonth()-g.m);st=Math.floor(d.getTime()/1000);q="period1="+(st-9*86400)+"&period2="+(Math.floor(Date.now()/1000)+86400)+"&interval="+g.i}else q="range="+g.r+"&interval="+g.i;
  return yj(s,q).then(function(a){
   var pts=st?a.p.filter(function(x){return x[0]>=st}):a.p,pre=st?a.p.filter(function(x){return x[0]<st}):[],base=pre.length?pre[pre.length-1][1]:(pts[0]||[0,0])[1];
@@ -533,11 +533,11 @@ function fetchSeries(s,pd){var k=s+"|"+pd+(pd==="CUSTOM"?"|"+state.pdFrom+"|"+st
   if((pd==="1M"||pd==="5G")&&pts.length){var s2=pd==="1M"?st:Math.floor(Date.parse(dOf(pts[0][0])+"T00:00:00Z")/1000);return yj(s,"period1="+(s2-9*86400)+"&period2="+s2+"&interval=1d").then(function(z){return fin(z.p.length?z.p[z.p.length-1][1]:base)}).catch(function(){return fin(base)})}
   return fin(base)})}
 function dchart(){
- var s=dv.s,pd=dv.pd,k=s+"|"+pd+(pd==="CUSTOM"?"|"+state.pdFrom+"|"+state.pdTo:""),svg=$("dch");
+ var s=dv.s,pd=dv.pd,k=s+"|"+pd,svg=$("dch");
  if(!REAL){svg.innerHTML=msg("Il grafico richiede i dati di Yahoo");$("dchg").innerHTML="";return}
  if(dv.k!==k)svg.innerHTML=msg("Caricamento…");
  fetchSeries(s,pd).then(function(v){if(dv.s!==s||dv.pd!==pd||$("detv").hidden)return;dv.k=k;paintD(v,s,pd)}).catch(function(){if(dv.s===s&&dv.pd===pd)svg.innerHTML=msg("Dati non disponibili")})}
-function lab(t,pd){var d=new Date(t*1000),z=function(n){return String(n).padStart(2,"0")};return pd==="1G"?z(d.getHours())+":"+z(d.getMinutes()):(pd==="1M"||pd==="6M"||pd==="5G"||pd==="YTD"||pd==="CUSTOM"?z(d.getDate())+"/"+z(d.getMonth()+1):z(d.getMonth()+1)+"/"+d.getFullYear())}
+function lab(t,pd){var d=new Date(t*1000),z=function(n){return String(n).padStart(2,"0")};return pd==="1G"?z(d.getHours())+":"+z(d.getMinutes()):(pd==="1M"||pd==="6M"||pd==="5G"||pd==="YTD"?z(d.getDate())+"/"+z(d.getMonth()+1):z(d.getMonth()+1)+"/"+d.getFullYear())}
 function paintD(v,s,pd){
  var P=v.p,svg=$("dch");if(P.length<2){svg.innerHTML=msg("Dati non disponibili");return}
  var W=340,H=170,L=6,R=46,T=10,B=20,t0=P[0][0],t1=P[P.length-1][0],last=P[P.length-1][1],b=v.base,mn=b,mx=b;
