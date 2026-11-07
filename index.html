@@ -326,7 +326,7 @@ function buildSet(pd){
   if(pd==="CUSTOM"){var rg=pdRange();d=new Date(rg.from+"T00:00:00Z");endD=new Date(rg.to+"T00:00:00Z")}
   else if(pd==="5A")d.setUTCFullYear(d.getUTCFullYear()-5);else{var e=earliest();d=new Date((e||AXD[0])+"T00:00:00Z")}
   sd=d.toISOString().slice(0,10);var span=(endD.getTime()-d.getTime())/31557600000;
-  q="period1="+(Math.floor(d.getTime()/1000)-10*86400)+"&period2="+(Math.floor(endD.getTime()/1000)+86400)+"&interval="+(span>5.5?"1mo":"1wk")}
+  q="period1="+(Math.floor(d.getTime()/1000)-10*86400)+"&period2="+(Math.floor(endD.getTime()/1000)+86400)+"&interval="+(pd==="CUSTOM"?(span*365>2000?"1mo":span*365>180?"1wk":"1d"):(span>5.5?"1mo":"1wk"))}
  return Promise.all(jobs.map(function(j){return yj(j,q).catch(function(){return{p:[],m:{}}})})).then(function(R){
   var cs={};R.forEach(function(r){var u=cur(r.m.currency||"EUR");if(u!=="EUR")cs[u]=1});var cl=Object.keys(cs);
   return Promise.all(cl.map(function(u){return intra?Promise.resolve(null):fxHist(u,prevDay(prevDay(sd))).catch(function(){return null})})).then(function(F){
@@ -351,7 +351,7 @@ function buildSet(pd){
     return out.map(function(v){return v===null?(f===null?0:f):v})});
    var px=function(s,i){return isMan(s)?1:V[syms.indexOf(s)][i]},bms={};
    state.bms.forEach(function(k,b){bms[k]=function(i){return V[syms.length+b][i]}});
-   var stB=0;if(!intra){var pStart=pd==="CUSTOM"?pdRange(pd).from:pd==="5A"?pdStartFor(pd,AXD.length?AXD[N-1]:today()):earliest();stB=D.length-1;for(var si=0;si<D.length;si++){if(D[si]>=pStart){stB=si;break}}}
+   var stB=0;if(!intra){var pStart=pd==="CUSTOM"?pdRange(pd).from:pd==="5A"?pdStartFor(pd,AXD.length?AXD[N-1]:today()):earliest();stB=D.length-1;for(var si=0;si<D.length;si++){if(D[si]>=pStart){stB=si;break}}}if(D.length-stB<2&&stB>0)stB--; // intervallo di 1 giorno: includi il giorno prima come base, altrimenti il grafico avrebbe 1 solo punto
    var r=twrG(D,px,bms,stB);
    r.lab=intra?(pd==="1G"?[hm(T[1]),hm(T[T.length-1])]:[dm(D[1]),dm(D[D.length-1])]):[dm(D[Math.max(r.s0,0)]),dm(D[D.length-1])];
    SET[key]={t:Date.now(),v:r};return r})})}
