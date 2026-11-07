@@ -265,6 +265,8 @@ function num(v){v=v.trim();if(v.indexOf(",")>=0)v=v.replace(/\./g,"").replace(",
 function sgn(x){return Math.round(x*100)<0?"−":"+"}
 function pct(x){return sgn(x)+fmt(Math.abs(x),2)+"%"}
 function eur(x){return fmt(x,2)+" €"}
+function floor2c(x){return Math.floor(x*100+1e-9)/100+0.02} // floor ai centesimi + 2 centesimi, applicato UNA volta sul totale convertito
+function valConv(q,p,cc){var u=cur(cc||"EUR");if(u==="EUR")return q*p;return floor2c(q*p)} // q*p = totale $ * (valuta->EUR) gia in toE/price(); se EUR, niente floor/+2c
 function cls(x){var r=Math.round(x*100);return r>0?"up":r<0?"dn":"z"}
 var INFO={},SY={USD:"$",EUR:"€",GBP:"£",GBp:"p",GBX:"p"};
 function pi(s){var i=INFO[s];if(REAL&&i)return i;var a=price(s,N-1),b=price(s,N-2);return{nat:a,cs:"€",pct:(a/b-1)*100,pe:b,name:state.man[s]||s,sp:[],base:0}}
@@ -378,7 +380,7 @@ function render(){
  mainChart();
  var tv=0,tvr=0,pv=0,cost=0,dayPL=0,rl=0,sb0=0,V=state.view==="t",L=AXD[N-1];
  state.all.forEach(function(p){if(isMan(p.s)&&!state.cashR)return;rl+=p.r;sb0+=p.u});
- var rows=state.pos.map(function(o){var p=price(o.s,N-1),i=pi(o.s),v=o.q*p,c=o.q*o.c,qn=0,sn=0;
+ var rows=state.pos.map(function(o){var p=price(o.s,N-1),i=pi(o.s),v=valConv(o.q,p,i.cc),c=o.q*o.c,qn=0,sn=0;
   state.lots.forEach(function(l){if(l.s===o.s&&l.k!=="s"&&l.d&&l.d>=L){qn+=l.q;sn+=l.q*l.c}});
   var f=qn>o.q?o.q/qn:1,dd=(o.q-qn*f)*(p-i.pe)+f*(qn*p-sn),b0=(o.q-qn*f)*i.pe+f*sn;
   tv+=v;if(!(isMan(o.s)&&!state.cashR)){tvr+=v;pv+=b0;cost+=c;dayPL+=dd}
@@ -559,7 +561,7 @@ $("ddel").onclick=function(){if(!confirm("Eliminare "+dv.s+" e tutte le sue oper
 function renderDetail(){
  var s=dv.s,o=state.pos.filter(function(p){return p.s===s})[0],a=state.all.filter(function(p){return p.s===s})[0];
  if(!o){closeL("detv");return}
- var man=isMan(s),i=pi(s),p=price(s,N-1),v=o.q*p,ul=v-o.q*o.c,up=o.c?(p/o.c-1)*100:0,r=a?a.r:0;
+ var man=isMan(s),i=pi(s),p=price(s,N-1),v=valConv(o.q,p,i.cc),ul=v-o.q*o.c,up=o.c?(p/o.c-1)*100:0,r=a?a.r:0;
  $("dhead").innerHTML=man?'<div class="nm2">'+esc(state.man[s]||s)+'</div><small class="mut">Valore fisso · andamento non tracciato</small><div class="big">'+eur(v)+'</div>':'<div class="nm2">'+esc(i.name||s)+'</div><small class="mut">'+esc(s)+(opn(i.mkt)===null?"":" · "+mkd(i.mkt)+(opn(i.mkt)?"Mercato aperto":"Mercato chiuso"))+'</small><div class="big">'+fmt(i.nat,2)+" "+i.cs+' <span class="pc '+cls(i.pct)+'">'+pct(i.pct)+'</span></div>';
  var row=function(l,x,c){return'<div class="tot"><span>'+l+'</span><b class="s'+(c?" "+c:"")+'">'+x+'</b></div>'};
  var cc=i.cc||"EUR",u=cur(cc),k=kf(cc),G=FXS[u],ne=!man&&u!=="EUR"&&!!G&&G.k.length>0,F=ne?fxFor(u,s):null,an=0,fd="",rn=1;
