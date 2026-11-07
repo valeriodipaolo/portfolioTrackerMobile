@@ -265,8 +265,8 @@ function num(v){v=v.trim();if(v.indexOf(",")>=0)v=v.replace(/\./g,"").replace(",
 function sgn(x){return Math.round(x*100)<0?"−":"+"}
 function pct(x){return sgn(x)+fmt(Math.abs(x),2)+"%"}
 function eur(x){return fmt(x,2)+" €"}
-function floor2c(x){return Math.floor(x*100+1e-9)/100+0.02} // floor ai centesimi + 2 centesimi, applicato UNA volta sul totale convertito
-function valConv(q,p,cc){var u=cur(cc||"EUR");if(u==="EUR")return q*p;return floor2c(q*p)} // q*p = totale $ * (valuta->EUR) gia in toE/price(); se EUR, niente floor/+2c
+function ceil1c(x){return Math.ceil(x*100-1e-9)/100+0.01} // ceil ai centesimi + 1 centesimo, applicato UNA volta sul totale convertito
+function valConv(q,p,cc){var u=cur(cc||"EUR");if(u==="EUR")return q*p;return ceil1c(q*p)} // q*p = totale $ * (valuta->EUR) gia in toE/price(); se EUR, niente ceil/+1c
 function cls(x){var r=Math.round(x*100);return r>0?"up":r<0?"dn":"z"}
 var INFO={},SY={USD:"$",EUR:"€",GBP:"£",GBp:"p",GBX:"p"};
 function pi(s){var i=INFO[s];if(REAL&&i)return i;var a=price(s,N-1),b=price(s,N-2);return{nat:a,cs:"€",pct:(a/b-1)*100,pe:b,name:state.man[s]||s,sp:[],base:0}}
@@ -505,7 +505,7 @@ function atT(P,t){var r=null;for(var i=0;i<P.length;i++){if(P[i][0]<=t)r=P[i][1]
 function refT(P,t,H,M){for(var j=0;j<7;j++){var d=new Date(t*1000);d.setDate(d.getDate()-j);d.setHours(H,M,0,0);var ts=d.getTime()/1000,w=d.getDay();if(w===0||w===6||ts>t)continue;var r=atT(P,ts);return r===null?null:{ts:ts,r:r}}return null}
 function lastW(W,t){var b=null;W.forEach(function(w){if(w[0]<=t)b=w});return b}
 function ecbAt(E,t){var d=new Date(t*1000),td=d.getFullYear()+"-"+z2(d.getMonth()+1)+"-"+z2(d.getDate()),b=null;Object.keys(E.c).sort().forEach(function(k){if(k<td||(k===td&&d.getHours()>=16))b=k});return b?{d:b,r:E.c[b]}:null}
-function vars(r,usd){var esatto=usd*r;return[["esatto",esatto],["floor ai centesimi + 2 cent.",Math.floor(esatto*100)/100+0.02],["arrotondato",Math.round(esatto*100)/100],["per eccesso",Math.ceil(esatto*100-1e-9)/100],["per difetto",Math.floor(esatto*100+1e-9)/100]]} // r = USDEUR: € = $ * r; poi floor ai centesimi + 0,02 €
+function vars(r,usd){var esatto=usd*r;return[["esatto",esatto],["ceil ai centesimi + 1 cent.",Math.ceil(esatto*100-1e-9)/100+0.01],["arrotondato",Math.round(esatto*100)/100],["per eccesso",Math.ceil(esatto*100-1e-9)/100],["per difetto",Math.floor(esatto*100+1e-9)/100]]} // r = USDEUR: € = $ * r; poi ceil ai centesimi + 0,01 €
 function chist(){
  var L=state.cmp||[],A=L.filter(function(e){return e.ok}),h="";
  if(A.length){var cnt={};A.forEach(function(e){Object.keys(e.ok).forEach(function(k){cnt[k]=(cnt[k]||0)+(e.ok[k]?1:0)})});
