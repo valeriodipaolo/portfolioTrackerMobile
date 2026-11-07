@@ -118,7 +118,8 @@ select{font:inherit;font-size:16px;padding:9px;border:1px solid var(--line);bord
 <div id="list"></div>
 <button class="btn add2" id="addb">+ Aggiungi posizione</button>
 </div>
-<div class="card"><h2>Impostazioni e backup</h2><div class="two"><button class="chip" id="exp">Esporta CSV</button><button class="chip" id="impb">Importa CSV</button></div><label class="chk"><input type="checkbox" id="cashr"><span>Includi la liquidità nei rendimenti</span></label><input type="file" id="imp" accept=".csv,text/csv,text/plain,.txt" hidden></div>
+<div class="card"><h2>Impostazioni e backup</h2><div class="two"><button class="chip" id="exp">Esporta CSV</button><button class="chip" id="impb">Importa CSV</button></div>
+<label class="chk"><input type="checkbox" id="cashr"><span>Includi la liquidità nei rendimenti</span></label><input type="file" id="imp" accept=".csv,text/csv,text/plain,.txt" hidden></div>
 </main>
 <div id="detv" class="ov" hidden><div class="ovi">
 <div class="ovh"><button class="back" id="dback">‹ Indietro</button></div>
@@ -127,6 +128,7 @@ select{font:inherit;font-size:16px;padding:9px;border:1px solid var(--line);bord
 <div class="card" id="dchc"><div id="dchg"></div><svg id="dch" viewBox="0 0 340 170" role="img" aria-label="Andamento del prezzo del titolo"></svg></div>
 <div class="card" id="dsum"></div>
 <div class="card"><label style="margin-top:0"><span>Gruppo</span><select id="dgrp"></select></label></div>
+
 <div class="card"><h2>Operazioni</h2><div id="dops"></div>
 <div class="two"><button class="btn" id="dbuy">Aggiungi acquisto</button><button class="btn alt" id="dsell">Registra vendita</button></div>
 <button class="danger" id="ddel">Elimina posizione</button></div>
@@ -143,6 +145,7 @@ select{font:inherit;font-size:16px;padding:9px;border:1px solid var(--line);bord
 <button class="btn" id="save">Salva</button>
 <button class="danger" id="fdel" hidden>Elimina operazione</button>
 </div></div>
+
 <div id="toast" class="toast" hidden><span id="tmsg"></span><button id="tund">Annulla</button></div>
 <script>
 var BMS={SPX:{n:"S&P 500",b:1,mu:.0004,sg:.004,a:5900},NDX:{n:"Nasdaq 100",b:1.25,mu:.0006,sg:.006,a:20500},MSCI:{n:"MSCI World",b:.9,mu:.0003,sg:.003,a:3800},FTSE:{n:"FTSE All-World",b:.9,mu:.0003,sg:.0035,a:480}};
@@ -205,6 +208,51 @@ function yfi(sym){
   (x.timestamp||[]).forEach(function(t,i){if(q[i]!=null)p.push([t,q[i]])});return p}).catch(function(){return[]})}
 function cur(c){return c==="GBp"||c==="GBX"?"GBP":c}
 function kf(c){return c==="GBp"||c==="GBX"?.01:1}
+function loadAll(extra){
+ var syms=state.all.map(function(o){return o.s});if(extra)syms.push(extra);
+ syms=syms.filter(function(s,i){return syms.indexOf(s)===i&&!isMan(s)});
+ var bk=Object.keys(YB),jobs=syms.concat(bk.map(function(k){return YB[k]}));
+ return Promise.all(jobs.map(yf)).then(function(R){
+  var cs={};R.forEach(function(r){var u=cur(r.cur);if(u!=="EUR")cs[u]=1});
+  var cl=Object.keys(cs);
+  return Promise.all([Promise.all(cl.map(function(u){return fxPrim(u)})),Promise.all(syms.map(yfi))]).then(function(w){return[R,cl,w[0],w[1]]})
+ }).then(function(z){var R=z[0],cl=z[1],F=z[2],IT=z[3];
+  var set={};R.forEach(function(r){Object.keys(r.c).forEach(function(d){set[d]=1})});
+  var ax=Object.keys(set).sort().slice(-253);
+  function al(m){var out=[],l=null;ax.forEach(function(d){if(m[d]!=null)l=m[d];out.push(l)});var f=out.find(function(v){return v!=null});return out.map(function(v){return v==null?f:v})}
+  var nc={};
+  var fx={},FXN={};cl.forEach(function(u,i){var f=F[i],ks=Object.keys(f.c).sort();if(f.last)f.c[ks[ks.length-1]]=f.last;fx[u]=al(f.c);FXN[u]=mkFx(f.c);if(f.last)fx[u][fx[u].length-1]=f.last});
+  function toE(arr,c){var u=cur(c);if(u==="EUR")return arr;var k=kf(c);return arr.map(function(v,i){return v*k*fx[u][i]})}
+  var ni={};
+  syms.forEach(function(s,i){var r=R[i],ks=Object.keys(r.c).sort(),ln=ks.length,cu=r.last||r.c[ks[ln-1]],pd=ks[ln-2],pr=r.c[pd]||cu,u=cur(r.cur),k=kf(r.cur),ix=ax.indexOf(pd),fp=(u==="EUR")?1:fx[u][ix<0?ax.length-1:ix];
+   ni[s]={nat:cu,cs:SY[r.cur]||r.cur,pct:(cu/pr-1)*100,pe:pr*k*fp,name:r.nm||s,sp:IT[i]||[],base:pr,mkt:r.mk,cc:r.cur}});
+  syms.forEach(function(s,i){var r=R[i],ks=Object.keys(r.c).sort();if(r.last)r.c[ks[ks.length-1]]=r.last;nc[s]=toE(al(r.c),r.cur)});
+  bk.forEach(function(k,i){var r=R[syms.length+i];nc[k]=toE(al(r.a),r.cur)});
+  cache=nc;INFO=ni;FXS=FXN;N=ax.length;AXD=ax;REAL=true})}
+function price(s,i){if(isMan(s))return 1;var p=serie(s);return i===N-1&&!REAL?p[i]*(1+(live[s]||0)):p[i]}
+function grp(s){return s.replace(/\B(?=(\d{3})+(?!\d))/g,".")}
+function fmt(x,d){var n=Math.abs(x).toFixed(d).split(".");return(x<0&&+n.join(".")!==0?"−":"")+grp(n[0])+(n[1]?","+n[1]:"")}
+function win(p,st,en){if(!st||!en||!p.length)return null;var sh=Math.floor((p[0][0]-st+3600)/86400)*86400;return[st+sh,en+sh]}
+function spark(p,b,c,m){
+ if(!p||p.length<2)return"";
+ var W=64,H=34,w=m&&m.st?win(p,m.st,m.en):null,t0=w?w[0]:p[0][0],t1=w?w[1]:p[p.length-1][0],mn=b,mx=b;
+ p.forEach(function(q){if(q[1]<mn)mn=q[1];if(q[1]>mx)mx=q[1]});
+ var pd=(mx-mn)*.1||1;mn-=pd;mx+=pd;
+ function X(t){return Math.max(0,Math.min(W,(t-t0)/((t1-t0)||1)*W))}
+ function Y(v){return 2+(mx-v)/(mx-mn)*(H-4)}
+ var d=p.map(function(q,i){return(i?"L":"M")+X(q[0]).toFixed(1)+" "+Y(q[1]).toFixed(1)}).join(""),col=c==="up"?"var(--up)":c==="dn"?"var(--dn)":"var(--mut)",yb=Y(b).toFixed(1),xe=X(p[p.length-1][0]).toFixed(1),xs=X(p[0][0]).toFixed(1);
+ return'<svg viewBox="0 0 '+W+' '+H+'" aria-hidden="true"><line x1="0" x2="'+W+'" y1="'+yb+'" y2="'+yb+'" stroke="var(--mut)" stroke-width="1" stroke-dasharray="2 2"/><path d="'+d+'L'+xe+' '+yb+'L'+xs+' '+yb+'Z" fill="'+col+'" fill-opacity=".18"/><path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="1.5" stroke-linejoin="round"/></svg>'}
+function qf(q){var n=(+q.toFixed(4)).toString().split(".");return grp(n[0])+(n[1]?","+n[1]:"")}
+function esc(t){return String(t).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function num(v){v=v.trim();if(v.indexOf(",")>=0)v=v.replace(/\./g,"").replace(",",".");return parseFloat(v)}
+function sgn(x){return Math.round(x*100)<0?"−":"+"}
+function pct(x){return sgn(x)+fmt(Math.abs(x),2)+"%"}
+function eur(x){return fmt(x,2)+" €"}
+function ceilC(x){return Math.ceil(x*100-1e-9)/100} // solo ceil ai centesimi, senza somma, UNA volta sul totale convertito
+function valConv(q,p,cc){var u=cur(cc||"EUR");if(u==="EUR")return q*p;return ceilC(q*p)}
+function cls(x){var r=Math.round(x*100);return r>0?"up":r<0?"dn":"z"}
+var INFO={},SY={USD:"$",EUR:"€",GBP:"£",GBp:"p",GBX:"p"};
+function pi(s){var i=INFO[s];if(REAL&&i)return i;var a=price(s,N-1),b=price(s,N-2);return{nat:a,cs:"€",pct:(a/b-1)*100,pe:b,name:state.man[s]||s,sp:[],base:0}}
 var GC=["#3b82f6","#f59e0b","#a855f7","#ec4899","#06b6d4","#64748b"];
 var FXE={t:{}};
 function r4(x){return x.toFixed(4).replace(".",",")}
@@ -442,7 +490,7 @@ function renderDetail(){
  var cc=i.cc||"EUR",u=cur(cc),k=kf(cc),G=FXS[u],ne=!man&&u!=="EUR"&&!!G&&G.k.length>0,F=ne?fxFor(u,s):null,an=0,fd="",rn=1;
  if(ne){an=avgNat(s,u,k,F);fd=G.k[G.k.length-1];rn=G.v[fd]}
  var row2=function(l,x){return'<div class="tot"><span>'+l+'</span><b class="s sm">'+x+'</b></div>'};
- $("dsum").innerHTML=man?row("Importo",eur(v)):row("Valore",eur(v))+row("Quantità","x"+qf(o.q))+(ne?row2("Prezzo medio",eur(o.c)+" ("+fmt(an,2)+" "+i.cs+")")+row2("Prezzo attuale",eur(p)+" ("+fmt(i.nat,2)+" "+i.cs+")"):row("Prezzo medio",eur(o.c)))+row("Profitto/perdita",sgn(ul)+eur(Math.abs(ul)),cls(ul))+row("Variazione",pct(up),cls(ul))+(Math.abs(r)>=.005?row("Profitto realizzato",sgn(r)+eur(Math.abs(r)),cls(r)):"");
+  $("dsum").innerHTML=man?row("Importo",eur(v)):row("Valore",eur(v))+row("Quantità","x"+qf(o.q))+(ne?row2("Prezzo medio",eur(o.c)+" ("+fmt(an,2)+" "+i.cs+")")+row2("Prezzo attuale",eur(p)+" ("+fmt(i.nat,2)+" "+i.cs+")"):row("Prezzo medio",eur(o.c)))+row("Profitto/perdita",sgn(ul)+eur(Math.abs(ul)),cls(ul))+row("Variazione",pct(up),cls(ul))+(Math.abs(r)>=.005?row("Profitto realizzato",sgn(r)+eur(Math.abs(r)),cls(r)):"");
  var gs=$("dgrp"),sg=state.groups.map(function(g){return g.id+g.n}).join("|");if(dv.gs!==sg||dv.g2!==s){gs.innerHTML='<option value="">Nessun gruppo</option>'+state.groups.map(function(g){return'<option value="'+g.id+'">'+esc(g.n)+'</option>'}).join("")+'<option value="__new">+ Nuovo gruppo…</option>';dv.gs=sg;dv.g2=s}gs.value=gid(s);
  var ix=state.lots.map(function(l,j){return{l:l,j:j}}).filter(function(x){return x.l.s===s}).sort(function(a,b){return(b.l.d||"").localeCompare(a.l.d||"")||b.j-a.j});
  $("dops").innerHTML=ix.map(function(x){var l=x.l;return'<div class="op" data-i="'+x.j+'"><div><b>'+(l.k==="s"?(man?"Prelievo":"Vendita"):(man?"Versamento":"Acquisto"))+'</b><small>'+(l.d?dmy(l.d):"Data non indicata")+(ne&&F?" · cambio "+r4(rateAt(u,l.d||"0000-00-00",F)):"")+'</small></div>'+(man?'<div></div><div class="r">'+eur(l.q)+'</div>':'<div class="r">x'+qf(l.q)+'</div><div class="r">'+eur(l.c)+(ne&&F?'<small>'+fmt(l.c/rateAt(u,l.d||"0000-00-00",F)/k,2)+' '+i.cs+'</small>':'')+'</div>')+'</div>'}).join("");
