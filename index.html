@@ -151,10 +151,11 @@ select{font:inherit;font-size:16px;padding:9px;border:1px solid var(--line);bord
 <p class="note" id="cinfo"></p>
 <label><span>Valore in banca (€)</span><input id="cb" inputmode="decimal" placeholder="Es. 58.965,86"></label>
 <label><span>Prezzo mostrato dalla banca</span><input id="cp" inputmode="decimal"></label>
+<label><span>Quando hai visto il valore in banca</span><input id="cdt" type="datetime-local"></label>
 <div class="err" id="cerr" role="alert"></div>
-<button class="btn" id="cgo">Confronta e salva</button>
+<button class="btn" id="cgo">Analizza e salva</button>
 <div class="card" id="cres" style="margin-top:14px" hidden></div>
-<h2 style="margin-top:18px">Confronti salvati</h2><div id="chist"></div>
+<h2 style="margin-top:18px">Cosa abbiamo capito finora</h2><div id="chist"></div>
 </div></div>
 <div id="toast" class="toast" hidden><span id="tmsg"></span><button id="tund">Annulla</button></div>
 <script>
@@ -213,9 +214,9 @@ function yf(sym){
   x.timestamp.forEach(function(t,i){if(q[i]==null)return;var d=new Date(t*1000).toISOString().slice(0,10);c[d]=q[i];a[d]=ad[i]==null?q[i]:ad[i]});
   return{c:c,a:a,last:x.meta.regularMarketPrice,cur:x.meta.currency,nm:x.meta.longName||x.meta.shortName||"",mk:mkm(x.meta)}})}
 function yfi(sym){
- return fetch("https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(sym)+"?range=5d&interval=5m",{headers:{"User-Agent":"Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/124 Mobile Safari/537.36"}}).then(function(r){if(!r.ok)throw new Error(sym);return r.json()}).then(function(j){
+ return fetch("https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(sym)+"?range=1d&interval=5m",{headers:{"User-Agent":"Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/124 Mobile Safari/537.36"}}).then(function(r){if(!r.ok)throw new Error(sym);return r.json()}).then(function(j){
   var x=j.chart.result[0],q=x.indicators.quote[0].close,p=[];
-  (x.timestamp||[]).forEach(function(t,i){if(q[i]!=null)p.push([t,q[i]])});p.meta=x.meta||{};return p}).catch(function(){return[]})}
+  (x.timestamp||[]).forEach(function(t,i){if(q[i]!=null)p.push([t,q[i]])});return p}).catch(function(){return[]})}
 function cur(c){return c==="GBp"||c==="GBX"?"GBP":c}
 function kf(c){return c==="GBp"||c==="GBX"?.01:1}
 function ecb(u){return ecbQ(u,"lastNObservations=300")}
@@ -231,8 +232,8 @@ function loadAll(extra){
  return Promise.all(jobs.map(yf)).then(function(R){
   var cs={};R.forEach(function(r){var u=cur(r.cur);if(u!=="EUR")cs[u]=1});
   var cl=Object.keys(cs);
-  return Promise.all([Promise.all(cl.map(function(u){return fxPrim(u)})),Promise.all(syms.map(yfi)),Promise.all(cl.map(function(u){return state.fxSrc==="yh"?fxIntraday(u):Promise.resolve([])}))]).then(function(w){return[R,cl,w[0],w[1],w[2]]})
- }).then(function(z){var R=z[0],cl=z[1],F=z[2],IT=z[3],FXI=z[4],FXIT={};cl.forEach(function(u,i){FXIT[u]=FXI[i]||[]});
+  return Promise.all([Promise.all(cl.map(function(u){return fxPrim(u)})),Promise.all(syms.map(yfi))]).then(function(w){return[R,cl,w[0],w[1]]})
+ }).then(function(z){var R=z[0],cl=z[1],F=z[2],IT=z[3];
   var set={};R.forEach(function(r){Object.keys(r.c).forEach(function(d){set[d]=1})});
   var ax=Object.keys(set).sort().slice(-253);
   function al(m){var out=[],l=null;ax.forEach(function(d){if(m[d]!=null)l=m[d];out.push(l)});var f=out.find(function(v){return v!=null});return out.map(function(v){return v==null?f:v})}
@@ -244,20 +245,7 @@ function loadAll(extra){
    ni[s]={nat:cu,cs:SY[r.cur]||r.cur,pct:(cu/pr-1)*100,pe:pr*k/fp,name:r.nm||s,sp:IT[i]||[],base:pr,mkt:r.mk,cc:r.cur}});
   syms.forEach(function(s,i){var r=R[i],ks=Object.keys(r.c).sort();if(r.last)r.c[ks[ks.length-1]]=r.last;nc[s]=toE(al(r.c),r.cur)});
   bk.forEach(function(k,i){var r=R[syms.length+i];nc[k]=toE(al(r.a),r.cur)});
-  /* Per il controvalore corrente: abbina il cambio intraday all'ultimo timestamp valido della quotazione del singolo titolo. */
-  var currentFX={};
-  syms.forEach(function(s,i){
-   var r=R[i],u=cur(r.cur);if(u==="EUR")return;
-   var pts=IT[i]||[],st=(pts.meta&&pts.meta.regularMarketTime)|| (pts.length?pts[pts.length-1][0]:null);
-   var fp=FXIT[u]||[],chosen=null;
-   if(state.fxSrc==="yh"&&st!=null){for(var j=0;j<fp.length;j++){if(fp[j][0]<=st)chosen=fp[j];else break}}
-   var rate=chosen?chosen[1]:rateAt(u,dOf(Math.floor((st||Date.now()/1000))),FXN);
-   if(!(rate>0))rate=1;
-   currentFX[s]={rate:rate,ts:chosen?chosen[0]:null,stockTs:st||null};
-   var kk=kf(r.cur),quote=r.last||r.c[Object.keys(r.c).sort().slice(-1)[0]];
-   if(state.fxSrc==="yh"&&quote!=null&&nc[s]&&nc[s].length)nc[s][nc[s].length-1]=quote*kk/rate;
-  });
-  cache=nc;INFO=ni;FXS=FXN;FXCURRENT=currentFX;N=ax.length;AXD=ax;REAL=true})}
+  cache=nc;INFO=ni;FXS=FXN;N=ax.length;AXD=ax;REAL=true})}
 function price(s,i){if(isMan(s))return 1;var p=serie(s);return i===N-1&&!REAL?p[i]*(1+(live[s]||0)):p[i]}
 function grp(s){return s.replace(/\B(?=(\d{3})+(?!\d))/g,".")}
 function fmt(x,d){var n=Math.abs(x).toFixed(d).split(".");return(x<0&&+n.join(".")!==0?"−":"")+grp(n[0])+(n[1]?","+n[1]:"")}
@@ -318,7 +306,7 @@ function listHtml(rows,V){
  }else h=sr.map(function(r){return rowHtml(r,V)}).join("");
  if(sr.some(function(r){return opn(r.mo)!==null}))h+='<p class="note"><i class="mkt on"></i>mercato aperto<i class="mkt off" style="margin-left:14px"></i>mercato chiuso</p>';
  return h}
-var SET={},MT=0,MK="",FXS={},FXCURRENT={};
+var SET={},MT=0,MK="",FXS={};
 function mkFx(c){return{k:Object.keys(c).sort(),v:c}}
 function rateAt(u,ds,F){if(u==="EUR")return 1;var f=(F||FXS)[u];if(!f||!f.k.length)return 1;if(ds<f.k[0])return f.v[f.k[0]];var lo=0,hi=f.k.length-1;while(lo<hi){var m=(lo+hi+1)>>1;if(f.k[m]<=ds)lo=m;else hi=m-1}return f.v[f.k[lo]]}
 function dOf(t){return new Date(t*1000).toISOString().slice(0,10)}
@@ -503,76 +491,53 @@ function r6(x){return x.toFixed(6).replace(".",",")}
 function fxHist(u,sd){
  if(state.fxSrc==="yh")return yj("EUR"+u+"=X","period1="+Math.floor(Date.parse(sd+"T00:00:00Z")/1000)+"&period2="+(Math.floor(Date.now()/1000)+86400)+"&interval=1d").then(function(a){var c={};a.p.forEach(function(x){c[dOf(x[0])]=x[1]});if(!Object.keys(c).length)throw new Error(u);return{c:c}});
  return ecbQ(u,"startPeriod="+sd)}
-function fxIntraday(u){
- var sym="EUR"+u+"=X";
- return fetch("https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(sym)+"?range=5d&interval=5m")
-  .then(function(r){if(!r.ok)throw new Error(sym);return r.json()})
-  .then(function(j){var x=j.chart.result[0],q=x.indicators.quote[0].close,a=[];(x.timestamp||[]).forEach(function(t,i){if(q[i]!=null)a.push([t,q[i]])});return a})
-  .catch(function(){return[]});
-}
-function fxPrim(u){
- if(state.fxSrc!=="yh")return ecb(u).catch(function(){return yf("EUR"+u+"=X")});
- var sym="EUR"+u+"=X";
- /* Yahoo non offre un'impostazione standard per congelare il cambio in una fascia oraria:
-    si usa la serie intraday e si applica la finestra richiesta, in ora locale italiana. */
- return Promise.all([
-  yf(sym),
-  fetch("https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(sym)+"?range=5d&interval=5m")
-   .then(function(r){if(!r.ok)throw new Error(sym);return r.json()})
-   .then(function(j){
-    var x=j.chart.result[0],q=x.indicators.quote[0].close,a=[];
-    (x.timestamp||[]).forEach(function(t,i){if(q[i]!=null)a.push([t,q[i]])});
-    if(!a.length)throw new Error("Nessun dato intraday per "+sym);
-    var now=new Date(),day=now.getDay(),mins=now.getHours()*60+now.getMinutes();
-    var liveWindow=day>=1&&day<=5&&mins>=540&&mins<1320;
-    var cutoff=new Date(now);cutoff.setHours(22,0,0,0);
-    if(liveWindow){
-     var today=a.filter(function(p){var d=new Date(p[0]*1000);return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth()&&d.getDate()===now.getDate()&&d.getHours()>=9&&d.getTime()<=now.getTime()});
-     if(today.length)return today[today.length-1][1];
-    }
-    /* Fuori fascia: ultimo dato disponibile entro le 22:00 dell'ultimo giorno feriale. */
-    var target=null;
-    a.forEach(function(p){
-     var d=new Date(p[0]*1000),w=d.getDay(),m=d.getHours()*60+d.getMinutes();
-     if(w>=1&&w<=5&&m<=1320&&d.getTime()<=now.getTime()){
-      if(!target||p[0]>target[0])target=p;
-     }
-    });
-    if(!target)throw new Error("Nessuna chiusura intraday disponibile");
-    return target[1];
-   }).catch(function(){return null})
- ]).then(function(z){
-  var daily=z[0],spot=z[1];
-  if(spot==null)return daily;
-  daily.last=spot;
-  return daily;
- }).catch(function(){return yf(sym).catch(function(){return ecb(u)})});
-}
+function fxPrim(u){return state.fxSrc==="yh"?yf("EUR"+u+"=X").catch(function(){return ecb(u)}):ecb(u).catch(function(){return yf("EUR"+u+"=X")})}
+var GS=["dom","lun","mar","mer","gio","ven","sab"],MODI=["arrotondato","per eccesso","per difetto"];
+function dtl(t){var d=new Date(t*1000);return d.getFullYear()+"-"+z2(d.getMonth()+1)+"-"+z2(d.getDate())+"T"+z2(d.getHours())+":"+z2(d.getMinutes())}
+function tl(t){var d=new Date(t*1000);return GS[d.getDay()]+" "+z2(d.getDate())+"/"+z2(d.getMonth()+1)+" "+z2(d.getHours())+":"+z2(d.getMinutes())}
+function hh(t){var d=new Date(t*1000);return z2(d.getHours())+":"+z2(d.getMinutes())}
+function inWin(mo,r,F){var q=1e4/r;return mo==="arrotondato"?Math.round(q)===F:mo==="per eccesso"?Math.ceil(q-1e-9)===F:Math.floor(q+1e-9)===F}
+function wins(P,mo,F){var out=[],c=null;P.forEach(function(x){if(inWin(mo,x[1],F)){if(c&&x[0]-c[1]<=600)c[1]=x[0];else{c=[x[0],x[0]];out.push(c)}}});return out}
+function offs(W,t){var b=null;W.forEach(function(w){var o=t<w[0]?(w[0]-t)/60:t>w[1]+300?(w[1]+300-t)/60:0;if(b===null||Math.abs(o)<Math.abs(b))b=o});return b}
+function atT(P,t){var r=null;for(var i=0;i<P.length;i++){if(P[i][0]<=t)r=P[i][1];else break}return r}
+function refT(P,t,H,M){for(var j=0;j<7;j++){var d=new Date(t*1000);d.setDate(d.getDate()-j);d.setHours(H,M,0,0);var ts=d.getTime()/1000,w=d.getDay();if(w===0||w===6||ts>t)continue;var r=atT(P,ts);return r===null?null:{ts:ts,r:r}}return null}
+function lastW(W,t){var b=null;W.forEach(function(w){if(w[0]<=t)b=w});return b}
+function ecbAt(E,t){var d=new Date(t*1000),td=d.getFullYear()+"-"+z2(d.getMonth()+1)+"-"+z2(d.getDate()),b=null;Object.keys(E.c).sort().forEach(function(k){if(k<td||(k===td&&d.getHours()>=16))b=k});return b?{d:b,r:E.c[b]}:null}
+function vars(r,usd){var q=1e4/r;return[["esatto",usd/r],["arrotondato",usd*Math.round(q)/1e4],["per eccesso",usd*Math.ceil(q-1e-9)/1e4],["per difetto",usd*Math.floor(q+1e-9)/1e4]]}
 function chist(){
- var h=(state.cmp||[]).slice().reverse().slice(0,15).map(function(e){var best=null,t=new Date(e.t);
-  e.c.forEach(function(c){var d=Math.abs(c[1]-e.imp);if(!best||d<best.d)best={n:c[0],d:d,r:c[1]}});
-  return'<div class="cr"><div><b>'+esc(e.s)+' · '+z2(t.getDate())+'/'+z2(t.getMonth()+1)+' '+z2(t.getHours())+':'+z2(t.getMinutes())+'</b><small>banca '+eur(e.bank)+' · implicito '+r6(e.imp)+'</small></div><div class="r"><b>'+(best?esc(best.n):"–")+'</b><small>scarto '+(best?(best.r-e.imp>=0?"+":"−")+Math.abs(best.r-e.imp).toFixed(6).replace(".",","):"")+'</small></div></div>'}).join("");
- $("chist").innerHTML=h||'<p class="note">Nessun confronto salvato.</p>'}
+ var L=state.cmp||[],A=L.filter(function(e){return e.ok}),h="";
+ if(A.length){var cnt={};A.forEach(function(e){Object.keys(e.ok).forEach(function(k){cnt[k]=(cnt[k]||0)+(e.ok[k]?1:0)})});
+  var ks=Object.keys(cnt).sort(function(a,b){return cnt[b]-cnt[a]}).slice(0,6);
+  h+='<div class="tot"><span>Regole che riproducono la banca</span><b class="s sm">su '+A.length+' controlli</b></div>'+ks.map(function(k){return'<div class="cr"><div><b>'+esc(k)+'</b></div><div class="r"><b>'+cnt[k]+' / '+A.length+'</b></div></div>'}).join("");
+  h+='<div class="tot" style="margin-top:12px"><span>Ultimo istante in cui Yahoo era a quel cambio</span></div>'+MODI.map(function(m){return'<div class="cr"><div><b>'+m+'</b></div><div class="r">'+A.map(function(e){return'<small>'+(e.at&&e.at[m]?tl(e.at[m][0])+'–'+hh(e.at[m][1]+300):'–')+'</small>'}).join("")+'</div></div>'}).join("")+'<p class="note">Se la banca si ferma alla chiusura del mercato, nei controlli fatti a mercato chiuso questo orario sarà sempre quello dell’ultima chiusura.</p>'}
+ h+='<h2 style="margin-top:16px;font-size:.9rem">Controlli salvati</h2>'+(L.slice().reverse().slice(0,15).map(function(e){return'<div class="cr"><div><b>'+esc(e.s)+' · '+tl(e.tc||e.t/1000)+'</b><small>banca '+eur(e.bank)+'</small></div><div class="r"><b>'+(e.f4!=null?e.f4.toFixed(4).replace(".",","):r6(e.imp?1/e.imp:0))+' €/$</b><small>1 € = '+r6(e.imp)+'</small></div></div>'}).join("")||'<p class="note">Nessun controllo salvato.</p>');
+ $("chist").innerHTML=h}
 function cmpOpen(){var s=dv.s,i=pi(s),o=state.pos.filter(function(p){return p.s===s})[0];if(!o)return;
- $("cinfo").textContent=(i.name||s)+" · quantità "+qf(o.q)+". Inserisci il valore in euro che vedi in banca per questa posizione e il prezzo in "+i.cs+" che la banca mostra: di default c’è quello dell’app.";
- $("cp").value=String(i.nat.toFixed(2)).replace(".",",");$("cb").value="";$("cerr").textContent="";$("cres").hidden=true;chist();openL("cmpv")}
+ $("cinfo").textContent=(i.name||s)+" · quantità "+qf(o.q)+". Inserisci il valore in euro che vedi in banca e il prezzo in "+i.cs+" che la banca mostra (di default quello dell’app). Se il controllo non è di adesso, indica quando l’hai fatto: l’app cerca tra gli ultimi 5 giorni.";
+ $("cp").value=String(i.nat.toFixed(2)).replace(".",",");$("cb").value="";var n=Math.floor(Date.now()/1000);$("cdt").max=dtl(n);$("cdt").value=dtl(n);$("cerr").textContent="";$("cres").hidden=true;chist();openL("cmpv")}
 function cmpRun(){
- var s=dv.s,o=state.pos.filter(function(p){return p.s===s})[0],i=pi(s),cc=i.cc||"EUR",u=cur(cc),k=kf(cc),er=$("cerr"),bank=num($("cb").value),px=num($("cp").value);
+ var s=dv.s,o=state.pos.filter(function(p){return p.s===s})[0],i=pi(s),cc=i.cc||"EUR",u=cur(cc),k=kf(cc),er=$("cerr"),bank=num($("cb").value),px=num($("cp").value),t=Math.floor(new Date($("cdt").value).getTime()/1000);
  if(!o||u==="EUR")return;
  if(!(bank>0)||!(px>0)){er.textContent="Inserisci il valore in banca e il prezzo che la banca mostra.";return}
+ if(!(t>0))t=Math.floor(Date.now()/1000);
  er.textContent="Recupero i cambi…";
- var nat=o.q*px*k;
- Promise.all([ecbQ(u,"lastNObservations=3").catch(function(){return null}),yj("EUR"+u+"=X","range=1d&interval=5m").catch(function(){return null}),yj("EUR"+u+"=X","range=5d&interval=1d").catch(function(){return null})]).then(function(R){
-  var cand=[];
-  if(R[0]){var ks=Object.keys(R[0].c).sort(),d=ks[ks.length-1];if(d)cand.push({n:"Fixing BCE del "+dm(d),r:R[0].c[d]})}
-  if(R[1]&&R[1].m.regularMarketPrice)cand.push({n:"Yahoo, tempo reale ("+hm(R[1].m.regularMarketTime)+")",r:R[1].m.regularMarketPrice});
-  if(R[2]&&R[2].p.length){var l=R[2].p[R[2].p.length-1];cand.push({n:"Yahoo, chiusura del "+dm(dOf(l[0])),r:l[1]})}
-  if(!cand.length){er.textContent="Non riesco a recuperare i cambi in questo momento.";return}
-  var imp=nat/bank;cand.forEach(function(c){c.v=nat/c.r;c.d=c.v-bank;c.pc=c.d/bank*100});
-  var best=cand.reduce(function(a,c){return !a||Math.abs(c.r-imp)<Math.abs(a.r-imp)?c:a},null);
-  $("cres").innerHTML='<div class="tot"><span>Cambio implicito della banca</span><b class="s sm">1 € = '+r6(imp)+' '+i.cs+'</b></div>'+cand.map(function(c){return'<div class="cr"><div><b>'+esc(c.n)+(c===best?' <span class="pill">più vicino</span>':'')+'</b><small>1 € = '+r6(c.r)+' '+i.cs+'</small></div><div class="r"><b>'+eur(c.v)+'</b><small>'+sgn(c.d)+eur(Math.abs(c.d))+' ('+sgn(c.pc)+fmt(Math.abs(c.pc),4)+'%)</small></div></div>'}).join("");
-  $("cres").hidden=false;er.textContent="";
-  state.cmp=(state.cmp||[]).concat([{t:Date.now(),s:s,bank:bank,px:px,imp:imp,c:cand.map(function(c){return[c.n,c.r]})}]).slice(-30);save();chist()})}
+ var usd=o.q*px*k,sym=i.cs;
+ Promise.all([ecbQ(u,"lastNObservations=12").catch(function(){return null}),yj("EUR"+u+"=X","range=5d&interval=5m").catch(function(){return null})]).then(function(R){
+  var E=R[0],P=R[1]?R[1].p:[];
+  if(!E&&!P.length){er.textContent="Non riesco a recuperare i cambi in questo momento.";return}
+  var f=bank/usd,imp=usd/bank,f4=Math.abs(f-Math.round(f*1e4)/1e4)*usd<=0.03?Math.round(f*1e4)/1e4:null,F=f4!==null?Math.round(f4*1e4):null,src=[],ok={},off={},at={},h="";
+  var ec=E?ecbAt(E,t):null,yt=P.length?atT(P,t):null;
+  if(ec)src.push({n:"BCE del "+dm(ec.d),k:"BCE",r:ec.r});
+  if(yt)src.push({n:"Yahoo alle "+hh(t),k:"Yahoo al momento",r:yt});
+  if(P.length)[[14,15,"14:15"],[17,30,"17:30"],[22,0,"22:00"]].forEach(function(x){var q=refT(P,t,x[0],x[1]);if(q)src.push({n:"Yahoo, "+tl(q.ts),k:"Yahoo "+x[2],r:q.r})});
+  h+='<div class="tot"><span>Fattore della banca</span><b class="s sm">1 $ = '+(f4!==null?f4.toFixed(4).replace(".",","):r6(f))+' €</b></div><small class="mut" style="display:block;margin-bottom:6px">'+(f4!==null?"a 4 decimali":"non arrotondato")+' · equivale a 1 € = '+r6(imp)+' '+sym+'</small>';
+  src.forEach(function(c){vars(c.r,usd).forEach(function(v){var d=v[1]-bank,hit=Math.abs(d)<=0.03;ok[c.k+" · "+v[0]]=hit;
+   h+='<div class="cr"><div><b>'+esc(c.n)+' · '+v[0]+(hit?' <span class="pill">coincide</span>':'')+'</b><small>1 € = '+r6(c.r)+' '+sym+'</small></div><div class="r"><b>'+eur(v[1])+'</b><small>'+sgn(d)+eur(Math.abs(d))+'</small></div></div>'})});
+  if(F!==null&&P.length){h+='<div class="tot" style="margin-top:12px"><span>Quando Yahoo era a quel cambio</span></div>';
+   MODI.forEach(function(m){var W=wins(P,m,F);off[m]=W.length?offs(W,t):null;at[m]=lastW(W,t);
+    h+='<div class="cr"><div><b>'+m+'</b><small>'+(off[m]===null?"mai negli ultimi 5 giorni":"scostamento "+Math.round(off[m])+" min dal controllo")+'</small></div><div class="r">'+(W.slice(-4).reverse().map(function(w){return'<small>'+tl(w[0])+'–'+hh(w[1]+300)+'</small>'}).join("")||"–")+'</div></div>'})}
+  $("cres").innerHTML=h;$("cres").hidden=false;er.textContent="";
+  state.cmp=(state.cmp||[]).concat([{t:Date.now(),tc:t,s:s,bank:bank,px:px,imp:imp,f4:f4,ok:ok,off:off,at:at}]).slice(-30);save();chist()})}
 $("dcmp").onclick=cmpOpen;
 $("cback").onclick=function(){closeL("cmpv")};
 $("cgo").onclick=cmpRun;
@@ -592,9 +557,9 @@ function renderDetail(){
  $("dhead").innerHTML=man?'<div class="nm2">'+esc(state.man[s]||s)+'</div><small class="mut">Valore fisso · andamento non tracciato</small><div class="big">'+eur(v)+'</div>':'<div class="nm2">'+esc(i.name||s)+'</div><small class="mut">'+esc(s)+(opn(i.mkt)===null?"":" · "+mkd(i.mkt)+(opn(i.mkt)?"Mercato aperto":"Mercato chiuso"))+'</small><div class="big">'+fmt(i.nat,2)+" "+i.cs+' <span class="pc '+cls(i.pct)+'">'+pct(i.pct)+'</span></div>';
  var row=function(l,x,c){return'<div class="tot"><span>'+l+'</span><b class="s'+(c?" "+c:"")+'">'+x+'</b></div>'};
  var cc=i.cc||"EUR",u=cur(cc),k=kf(cc),G=FXS[u],ne=!man&&u!=="EUR"&&!!G&&G.k.length>0,F=ne?fxFor(u,s):null,an=0,fd="",rn=1;
- if(ne){an=avgNat(s,u,k,F);fd=G.k[G.k.length-1];rn=(state.fxSrc==="yh"&&FXCURRENT[s]&&FXCURRENT[s].rate)||G.v[fd]}
+ if(ne){an=avgNat(s,u,k,F);fd=G.k[G.k.length-1];rn=G.v[fd]}
  var row2=function(l,x){return'<div class="tot"><span>'+l+'</span><b class="s sm">'+x+'</b></div>'};
- $("dsum").innerHTML=man?row("Importo",eur(v)):row("Valore",eur(v))+row("Quantità","x"+qf(o.q))+(ne?row2("Prezzo medio",eur(o.c)+" ("+fmt(an,2)+" "+i.cs+")")+row2("Prezzo attuale",eur(p)+" ("+fmt(i.nat,2)+" "+i.cs+")")+row2((state.fxSrc==="yh"?"Cambio Yahoo (timestamp titolo)":"Cambio BCE ("+dm(fd)+")"),"1 € = "+r4(rn)+" "+i.cs+(state.fxSrc==="yh"&&FXCURRENT[s]&&FXCURRENT[s].stockTs?" · "+dm(dOf(FXCURRENT[s].stockTs))+" "+hm(FXCURRENT[s].stockTs):"")):row("Prezzo medio",eur(o.c)))+row("Profitto/perdita",sgn(ul)+eur(Math.abs(ul)),cls(ul))+row("Variazione",pct(up),cls(ul))+(Math.abs(r)>=.005?row("Profitto realizzato",sgn(r)+eur(Math.abs(r)),cls(r)):"")+(ne?'<p class="note" style="margin-top:8px">Prezzo medio in '+i.cs+': i tuoi prezzi in € convertiti con il cambio '+(state.fxSrc==="yh"?"Yahoo":"BCE")+' del giorno di ciascun acquisto.</p>':"");
+ $("dsum").innerHTML=man?row("Importo",eur(v)):row("Valore",eur(v))+row("Quantità","x"+qf(o.q))+(ne?row2("Prezzo medio",eur(o.c)+" ("+fmt(an,2)+" "+i.cs+")")+row2("Prezzo attuale",eur(p)+" ("+fmt(i.nat,2)+" "+i.cs+")")+row2((state.fxSrc==="yh"?"Cambio Yahoo (mercato)":"Cambio BCE ("+dm(fd)+")"),"1 € = "+r4(rn)+" "+i.cs):row("Prezzo medio",eur(o.c)))+row("Profitto/perdita",sgn(ul)+eur(Math.abs(ul)),cls(ul))+row("Variazione",pct(up),cls(ul))+(Math.abs(r)>=.005?row("Profitto realizzato",sgn(r)+eur(Math.abs(r)),cls(r)):"")+(ne?'<p class="note" style="margin-top:8px">Prezzo medio in '+i.cs+': i tuoi prezzi in € convertiti con il cambio '+(state.fxSrc==="yh"?"Yahoo":"BCE")+' del giorno di ciascun acquisto.</p>':"");
  var gs=$("dgrp"),sg=state.groups.map(function(g){return g.id+g.n}).join("|");if(dv.gs!==sg||dv.g2!==s){gs.innerHTML='<option value="">Nessun gruppo</option>'+state.groups.map(function(g){return'<option value="'+g.id+'">'+esc(g.n)+'</option>'}).join("")+'<option value="__new">+ Nuovo gruppo…</option>';dv.gs=sg;dv.g2=s}gs.value=gid(s);
  var ix=state.lots.map(function(l,j){return{l:l,j:j}}).filter(function(x){return x.l.s===s}).sort(function(a,b){return(b.l.d||"").localeCompare(a.l.d||"")||b.j-a.j});
  $("dops").innerHTML=ix.map(function(x){var l=x.l;return'<div class="op" data-i="'+x.j+'"><div><b>'+(l.k==="s"?(man?"Prelievo":"Vendita"):(man?"Versamento":"Acquisto"))+'</b><small>'+(l.d?dmy(l.d):"Data non indicata")+(ne&&F?" · cambio "+r4(rateAt(u,l.d||"0000-00-00",F)):"")+'</small></div>'+(man?'<div></div><div class="r">'+eur(l.q)+'</div>':'<div class="r">x'+qf(l.q)+'</div><div class="r">'+eur(l.c)+(ne&&F?'<small>'+fmt(l.c*rateAt(u,l.d||"0000-00-00",F)/k,2)+' '+i.cs+'</small>':'')+'</div>')+'</div>'}).join("");
