@@ -111,7 +111,7 @@ select{font:inherit;font-size:16px;padding:9px;border:1px solid var(--line);bord
 <div class="card">
 <div class="tot"><span>Valore</span><b id="val"></b></div>
 <div class="tot"><span>Profitto/perdita</span><b id="spl" class="s"></b></div>
-<div class="tot"><span>Rendimento (TWR)</span><b id="spp" class="s"></b></div>
+<div class="tot"><span>Rendimento</span><b id="spp" class="s"></b></div>
 </div>
 <div class="card">
 <div class="ph"><h2 id="hdr">Posizioni</h2></div><div class="phb"><button class="chip sm" id="lay">Vista: elenco</button><button class="chip sm" id="srt">Ordine: manuale</button><button class="chip sm" id="reo">Riordina</button><button class="chip sm" id="ngr" hidden>+ Nuovo gruppo</button></div>
@@ -187,14 +187,51 @@ function agg(){var m={},o=[];
   else{p.c=(p.q*p.c+l.q*l.c)/(p.q+l.q);p.q+=l.q;if(l.d<p.d)p.d=l.d}});
  state.all=o;state.pos=o.filter(function(p){return p.q>1e-9})}
 function twrG(D,px,bms,st){
- var I=[],B={},ks=Object.keys(bms),pv=0,s0=-1,b0={},x=100,L=D[D.length-1];
+ // Rendimento monetario del portafoglio: stesso criterio del riepilogo.
+ // La base è il valore iniziale delle posizioni + gli acquisti successivi;
+ // gli acquisti e le vendite intervenuti nel periodo sono trattati come flussi.
+ var I=[],B={},ks=Object.keys(bms),baseV=0,baseBuy=0,baseSet=false;
  ks.forEach(function(k){B[k]=[]});
- for(var i=st;i<D.length;i++){var v=0,cf=0,hq={};
-  state.lots.forEach(function(l){if(isMan(l.s)&&!state.cashR)return;var d=l.d&&l.d>L?L:l.d;if(!d||d<=D[i]){hq[l.s]=(hq[l.s]||0)+(l.k==="s"?-l.q:l.q);if(d&&i>0&&d>D[i-1])cf+=(l.k==="s"?-1:1)*l.q*l.c}});
-  for(var s in hq)v+=hq[s]*px(s,i);
-  if(s0<0){if(v>0){s0=i;I.push(100);ks.forEach(function(k){b0[k]=bms[k](i);B[k].push(100)});pv=v}}
-  else{if(pv>1e-9)x*=(v-cf)/pv;I.push(x);ks.forEach(function(k){B[k].push(bms[k](i)/b0[k]*100)});pv=v}}
- return{I:I,B:B,s0:s0,D:D}}
+ if(!D.length)return{I:I,B:B,s0:-1,D:D};
+ st=Math.max(0,Math.min(st||0,D.length-1));
+ function holdings(until,strict){
+  var h={};
+  state.lots.forEach(function(l){
+   if(isMan(l.s)&&!state.cashR)return;
+   var d=l.d;
+   if(!d|| (strict?d<until:d<=until))h[l.s]=(h[l.s]||0)+(l.k==="s"?-l.q:l.q);
+  });
+  return h;
+ }
+ var h0=holdings(D[st],false);
+ for(var s in h0)baseV+=h0[s]*px(s,st);
+ baseSet=true;
+ for(var i=st;i<D.length;i++){
+  var h=holdings(D[i],false),v=0,flow=0,buys=0;
+  for(var s in h)v+=h[s]*px(s,i);
+  if(i>st){
+   state.lots.forEach(function(l){
+    if(isMan(l.s)&&!state.cashR)return;
+    if(!l.d||l.d<=D[st]||l.d>D[i])return;
+    var amount=l.q*l.c;
+    if(l.k==="s")flow-=amount;else{flow+=amount;buys+=amount}
+   });
+  }
+  if(i===st){I.push(100);baseBuy=0}
+  else{
+   var denominator=baseV+baseBuy+buys;
+   var profit=v-baseV-flow;
+   I.push(denominator>1e-9?100*(1+profit/denominator):100);
+   baseBuy+=buys;
+  }
+  ks.forEach(function(k){
+   var first=bms[k](st),cur=bms[k](i);
+   if(i===st&&first>0)B[k].push(100);
+   else B[k].push(first>0?cur/first*100:100);
+  });
+ }
+ return{I:I,B:B,s0:st,D:D};
+}
 var REAL=false,YB={SPX:"^GSPC",NDX:"^NDX",MSCI:"IWDA.AS",FTSE:"VWCE.DE"};
 function yf(sym){
  return fetch("https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(sym)+"?range=1y&interval=1d",{headers:{"User-Agent":"Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/124 Mobile Safari/537.36"}}).then(function(r){
@@ -367,7 +404,7 @@ function mainChart(){
  if(!state.lots.length){ch.innerHTML=msg("Aggiungi una posizione per iniziare");lg.innerHTML="";return}
  var r=dailySer();if(r){MK="";paintMain(r);return}
  if(!REAL){ch.innerHTML=msg("Questo periodo richiede i dati di Yahoo");lg.innerHTML="";return}
- var key=state.pd+"|"+state.bms.join(",")+"|"+state.lots.length;
+ var key=state.pd+"|"+state.bms.join(",")+"|"+JSON.stringify(state.lots.map(function(l){return[l.s,l.k,l.q,l.c,l.d]}))+"|"+!!state.cashR;
  if(MK!==key)ch.innerHTML=msg("Caricamento…");
  buildSet(state.pd).then(function(x){if(tk===MT){MK=key;paintMain(x)}}).catch(function(){if(tk===MT){ch.innerHTML=msg("Dati non disponibili");lg.innerHTML=""}})}
 function bchips(){var el=document.getElementById("bms"),ks=Object.keys(BMS);el.innerHTML="";
