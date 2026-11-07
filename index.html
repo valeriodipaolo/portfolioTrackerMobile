@@ -111,7 +111,7 @@ select{font:inherit;font-size:16px;padding:9px;border:1px solid var(--line);bord
 <div class="card">
 <div class="tot"><span>Valore</span><b id="val"></b></div>
 <div class="tot"><span>Profitto/perdita</span><b id="spl" class="s"></b></div>
-<div class="tot"><span>Variazione</span><b id="spp" class="s"></b></div>
+<div class="tot"><span>Rendimento (TWR)</span><b id="spp" class="s"></b></div>
 </div>
 <div class="card">
 <div class="ph"><h2 id="hdr">Posizioni</h2></div><div class="phb"><button class="chip sm" id="lay">Vista: elenco</button><button class="chip sm" id="srt">Ordine: manuale</button><button class="chip sm" id="reo">Riordina</button><button class="chip sm" id="ngr" hidden>+ Nuovo gruppo</button></div>
@@ -318,7 +318,7 @@ function dailySer(){var pd=state.pd,st=0;
  var bms={};state.bms.forEach(function(k){var a=bser(k);bms[k]=function(i){return a[i]}});
  var r=twrG(AXD,price,bms,st);r.lab=r.I.length>1?[dm(pdRange().from),dm(AXD[N-1])]:["",""];return r}
 function buildSet(pd){
- var syms=state.all.map(function(o){return o.s}).filter(function(s){return !isMan(s)}),jobs=syms.concat(state.bms.map(function(k){return YB[k]})),key=pd+"|"+(pd==="CUSTOM"?(state.pdFrom+"|"+state.pdTo):"")+"|"+jobs.join(",")+"|"+state.lots.length,c=SET[key];
+ var syms=state.all.map(function(o){return o.s}).filter(function(s){return !isMan(s)}),jobs=syms.concat(state.bms.map(function(k){return YB[k]})),lotKey=state.lots.map(function(l){return[l.s,l.d||"",l.k,l.q,l.c].join(":")}).join(";"),key=pd+"|"+(pd==="CUSTOM"?(state.pdFrom+"|"+state.pdTo):"")+"|"+jobs.join(",")+"|"+lotKey+"|"+state.cashR,c=SET[key];
  if(c&&Date.now()-c.t<60000)return Promise.resolve(c.v);
  var intra=pd==="1G"||pd==="5G",now=Math.floor(Date.now()/1000),sd="",q;
  if(intra)q=pd==="1G"?"range=1d&interval=5m":"range=5d&interval=15m";
@@ -359,7 +359,9 @@ function paintMain(r){
  var cs=state.bms.map(function(k){return BMS[k].col}),Bs=state.bms.map(function(k){return r.B[k]});
  chart(r.I,Bs,cs,r.lab);
  var g=function(c,t,a){var x=a.length>1?a[a.length-1]-100:null;return'<span style="--c:'+c+'">'+esc(t)+' <b class="'+(x===null?"z":cls(x))+'">'+(x===null?"–":pct(x))+'</b></span>'};
- document.getElementById("lg").innerHTML=g("var(--pf)","Portafoglio",r.I)+state.bms.map(function(k,i){return g(cs[i],BMS[k].n,Bs[i])}).join("")}
+ document.getElementById("lg").innerHTML=g("var(--pf)","Portafoglio",r.I)+state.bms.map(function(k,i){return g(cs[i],BMS[k].n,Bs[i])}).join("");
+ var ret=r.I.length>1?r.I[r.I.length-1]-100:null,sb=document.getElementById("spp");
+ sb.textContent=ret===null?"–":pct(ret);sb.className="s "+(ret===null?"z":cls(ret))}
 function mainChart(){
  var tk=++MT,ch=document.getElementById("ch"),lg=document.getElementById("lg");
  if(!state.lots.length){ch.innerHTML=msg("Aggiungi una posizione per iniziare");lg.innerHTML="";return}
@@ -373,7 +375,6 @@ function bchips(){var el=document.getElementById("bms"),ks=Object.keys(BMS);el.i
   b.onclick=function(){var i=state.bms.indexOf(k);if(i>=0)state.bms.splice(i,1);else state.bms.push(k);state.bms.sort(function(a,b){return ks.indexOf(a)-ks.indexOf(b)});save();bchips();mainChart()};
   el.appendChild(b)})}
 function render(){
- mainChart();
  var rg=pdRange(),eIdx=idxAtOrBefore(rg.to),sIdx=idxBefore(rg.from);
  var tv=0,plTot=0,baseTot=0,rows=[];
  state.all.forEach(function(o){
@@ -402,6 +403,7 @@ function render(){
  document.getElementById("hdr").textContent="Posizioni · "+(state.pd==="CUSTOM"?dm(rg.from)+" – "+dm(rg.to):(PLBL[state.pd]||state.pd));
  document.getElementById("srt").textContent=state.sort==="r"?"Ordine: rendimento ↓":"Ordine: manuale";var rb2=document.getElementById("reo");rb2.hidden=state.sort==="r"&&state.layout!=="g";rb2.textContent=reo?"Fine":(state.layout==="g"?"Modifica":"Riordina");document.getElementById("lay").textContent=state.layout==="g"?"Vista: gruppi":"Vista: elenco";document.getElementById("ngr").hidden=state.layout!=="g";
  document.getElementById("list").innerHTML=listHtml(rows,true)||'<p class="note">Nessuna posizione. Aggiungi la prima con il pulsante qui sotto.</p>';
+ mainChart();
 }
 function chart(a,Bs,cs,lab){
  var svg=document.getElementById("ch");
