@@ -549,7 +549,7 @@ function renderDetail(){
  $("dops").innerHTML=ix.map(function(x){var l=x.l;return'<div class="op" data-i="'+x.j+'"><div><b>'+(l.k==="s"?(man?"Prelievo":"Vendita"):(man?"Versamento":"Acquisto"))+'</b><small>'+(l.d?dmy(l.d):"Data non indicata")+(ne&&F?" · cambio "+r4(rateAt(u,l.d||"0000-00-00",F)):"")+'</small></div>'+(man?'<div></div><div class="r">'+eur(l.q)+'</div>':'<div class="r">x'+qf(l.q)+'</div><div class="r">'+eur(l.c)+(ne&&F?'<small>'+fmt(l.c/rateAt(u,l.d||"0000-00-00",F)/k,2)+' '+i.cs+'</small>':'')+'</div>')+'</div>'}).join("");
  chips("dpd",PERS.map(function(x){return[x,x]}),dv.pd,function(x){dv.pd=x;dv.k=""},renderDetail);
  $("dpd").style.display=man?"none":"";$("dchc").style.display=man?"none":"";$("dbuy").textContent=man?"Aggiungi importo":"Aggiungi acquisto";$("dsell").textContent=man?"Preleva importo":"Registra vendita";
- kpis(s,o,a,v,ul,r);
+ kpis(s);
  if(!man)dchart()}
 function dnum(d){return Date.parse(d+"T00:00:00Z")/864e5}
 function xirr(F){var t0=F[0][0];function f(r){return F.reduce(function(a,x){return a+x[1]/Math.pow(1+r,(x[0]-t0)/365)},0)}
@@ -572,54 +572,59 @@ function svgLines(ser,D,fy,ar){
  h+='<text x="'+(W-R+4)+'" y="'+(Y(mx-pd)+3).toFixed(1)+'" font-size="10" fill="var(--mut)">'+fy(mx-pd)+'</text><text x="'+(W-R+4)+'" y="'+(Y(mn+pd)+3).toFixed(1)+'" font-size="10" fill="var(--mut)">'+fy(mn+pd)+'</text>'+
   '<text x="'+L+'" y="'+(H-4)+'" font-size="10" fill="var(--mut)">'+dm(D[0])+'</text><text x="'+(W-R)+'" y="'+(H-4)+'" font-size="10" text-anchor="end" fill="var(--mut)">'+dm(D[n-1])+'</text>';
  return'<svg viewBox="0 0 340 130" role="img">'+h+'</svg>'}
-function kpis(s,o,a,v,ul,r){
- var man=isMan(s),K=$("dkc"),G=$("dgc");K.style.display=G.style.display=man?"none":"";if(man)return;
- var n=N,D=AXD,P=[],j;for(j=0;j<n;j++)P.push(price(s,j));
- var last=P[n-1],prev=P[n-2]||last,tile=function(l,x,c){return'<div class="kt"><small>'+l+'</small><b'+(c?' class="'+c+'"':'')+'>'+x+'</b></div>'};
- // volatilità, drawdown, massimo/minimo, giorno migliore/peggiore
- var rt=[],pk=P[0],dd=[],mdd=0,hi=-1/0,lo=1/0,bd=-1/0,wd=1/0;
- for(j=0;j<n;j++){if(j){var q=P[j]/P[j-1]-1;rt.push(q);if(q>bd)bd=q;if(q<wd)wd=q}
-  if(P[j]>pk)pk=P[j];var x=P[j]/pk-1;dd.push(x*100);if(x<mdd)mdd=x;if(P[j]>hi)hi=P[j];if(P[j]<lo)lo=P[j]}
- var mu=rt.reduce(function(a,b){return a+b},0)/(rt.length||1),vol=Math.sqrt(rt.reduce(function(a,b){return a+(b-mu)*(b-mu)},0)/Math.max(1,rt.length-1))*Math.sqrt(252)*100;
- // peso e contributo
- var tv=0,tp=0;state.pos.forEach(function(p){var c=pi(p.s).cc,x=valConv(p.q,price(p.s,N-1),c);tv+=x;tp+=x-p.q*p.c});
- state.all.forEach(function(p){tp+=p.r});
- var w=tv>0?v/tv*100:0,pl=ul+(a?a.r:0),ct=Math.abs(tp)>=1?pl/tp*100:null;
- // giorni e rendimento annualizzato (XIRR sui flussi)
- var days=o.d?Math.max(0,Math.round(dnum(today())-dnum(o.d))):null,F=[],xr=null;
- sorted(state.lots).forEach(function(l){if(l.s!==s)return;F.push([dnum(l.d||(o.d||today())),l.k==="s"?l.q*l.c:-l.q*l.c])});
- F.push([dnum(today()),v]);if(days!==null&&days>=60&&F.length>1){var t0=F[0][0];F.sort(function(a,b){return a[0]-b[0]});xr=xirr(F)}
- var dpl=o.q*(last-prev),dp=(last/prev-1)*100,be=o.q>0&&Math.abs(a?a.r:0)>=.005?(o.q*o.c-a.r)/o.q:null;
- K.innerHTML='<h2>Indicatori</h2><div class="kg">'+
-  tile("Var. giornaliera",pct(dp),cls(dp))+tile("P/L giornaliero",sgn(dpl)+eur(Math.abs(dpl)),cls(dpl))+
-  tile("Rendimento totale",pct(o.c?(last/o.c-1)*100:0),cls(ul))+
-  tile("Annualizzato (XIRR)",xr===null?"n/d":pct(xr*100),xr===null?"":cls(xr))+
-  tile("Giorni di detenzione",days===null?"n/d":String(days))+
-  tile("Peso nel portafoglio",fmt(w,1)+"%")+
-  tile("Contributo al P/L",ct===null?"n/d":fmt(ct,1)+"%")+
-  tile("Min / Max 1 anno",eur(lo)+" / "+eur(hi))+
-  tile("Dal massimo",pct((last/hi-1)*100),cls(last/hi-1))+
-  tile("Volatilità annua",fmt(vol,1)+"%")+
-  tile("Max drawdown",pct(mdd*100),mdd<0?"dn":"")+
-  tile("Giorno migliore / peggiore",pct(bd*100)+" / "+pct(wd*100))+
-  (be!==null?tile("Pareggio (con realizzato)",eur(be)):"")+'</div>'+
-  '<small class="mut" style="display:block;margin-top:8px">Calcolati in € sugli ultimi 12 mesi, cambio incluso.</small>';
- // grafico 1: valore vs costo
- var ls=sorted(state.lots).filter(function(l){return l.s===s}),li=0,q=0,c=0,V=[],C=[];
- for(j=0;j<n;j++){while(li<ls.length&&(ls[li].d||"0000-00-00")<=D[j]){var l=ls[li++];if(l.k==="s"){q-=l.q;if(q<1e-9)q=0}else{c=(q*c+l.q*l.c)/(q+l.q);q+=l.q}}
-  if(q>0){V.push(q*P[j]);C.push(q*c)}else{V.push(null);C.push(null)}}
- var col=ul>=0?"var(--up)":"var(--dn)",first=V.findIndex(function(x){return x!==null});
- var e=function(x){return fmt(x,0)+"€"};
- var g1=first<0?msg("Nessun dato"):svgLines([{y:V,col:col,fill:null},{y:C,col:"var(--mut)",dash:"4 3",w:1.4}],D,e);
- // grafico 3: range 1 anno
- var rw=300,rx=function(x){return 10+(x-lo)/((hi-lo)||1)*rw},rg='<svg viewBox="0 0 340 56" role="img"><rect x="10" y="22" width="'+rw+'" height="6" rx="3" fill="var(--line)"/>'+
-  '<rect x="'+rx(Math.min(last,o.c)).toFixed(1)+'" y="22" width="'+Math.abs(rx(last)-rx(o.c)).toFixed(1)+'" height="6" fill="'+col+'" fill-opacity=".5"/>'+
-  '<circle cx="'+rx(last).toFixed(1)+'" cy="25" r="6" fill="'+col+'"/>'+
-  (o.c>=lo&&o.c<=hi?'<line x1="'+rx(o.c).toFixed(1)+'" x2="'+rx(o.c).toFixed(1)+'" y1="16" y2="34" stroke="var(--mut)" stroke-width="2"/><text x="'+rx(o.c).toFixed(1)+'" y="48" font-size="10" text-anchor="middle" fill="var(--mut)">prezzo medio</text>':'')+
-  '<text x="10" y="12" font-size="10" fill="var(--mut)">'+eur(lo)+'</text><text x="'+(10+rw)+'" y="12" font-size="10" text-anchor="end" fill="var(--mut)">'+eur(hi)+'</text></svg>';
- G.innerHTML='<h2>Valore vs costo</h2><div class="leg"><span style="--c:'+col+'">Valore</span><span style="--c:var(--mut)">Costo</span></div>'+g1+
-  '<h2 style="margin-top:14px">Posizione nel range a 1 anno</h2>'+rg+
-  '<h2 style="margin-top:14px">Drawdown dal massimo</h2>'+svgLines([{y:dd,col:"var(--dn)",fill:0}],D,function(x){return fmt(x,0)+"%"},0)}
+var FUN={};
+function fundGet(s){var c=FUN[s];if(c&&Date.now()-c.t<36e5)return c.p;
+ var T=["annualTotalRevenue","annualNetIncome","annualDilutedEPS","annualOperatingCashFlow","annualFreeCashFlow","annualCapitalExpenditure","annualTotalDebt","annualCashCashEquivalentsAndShortTermInvestments","trailingPeRatio","trailingForwardPeRatio","trailingMarketCap","trailingPsRatio"];
+ var u="https://query1.finance.yahoo.com/ws/fundamentals-timeseries/v1/finance/timeseries/"+encodeURIComponent(s)+"?type="+T.join(",")+"&merge=false&period1=1388534400&period2="+(Math.floor(Date.now()/1000)+86400);
+ var p=fetch(u,{headers:{"User-Agent":UA}}).then(function(r){if(!r.ok)throw new Error("f"+r.status);return r.json()}).then(function(j){var o={};
+  ((j.timeseries&&j.timeseries.result)||[]).forEach(function(r){var t=r.meta&&r.meta.type&&r.meta.type[0];if(!t||!r[t])return;
+   o[t]=r[t].filter(function(x){return x&&x.reportedValue&&x.reportedValue.raw!=null}).map(function(x){return{d:x.asOfDate,v:x.reportedValue.raw}}).sort(function(a,b){return a.d<b.d?-1:1})});return o});
+ FUN[s]={t:Date.now(),p:p};p.catch(function(){delete FUN[s]});return p}
+function fB(x){var a=Math.abs(x),g=function(v,u){return fmt(v,v<10?1:0)+" "+u};return(x<0?"−":"")+(a>=1e12?g(a/1e12,"T"):a>=1e9?g(a/1e9,"Mrd"):a>=1e6?g(a/1e6,"Mln"):fmt(a,0))}
+function bars(L,V,f,col){
+ var W=340,H=120,n=V.length,mx=Math.max.apply(0,V.concat([0])),mn=Math.min.apply(0,V.concat([0])),bw=Math.min(34,(W-20)/n-10),
+  y=function(x){return 16+(mx-x)/((mx-mn)||1)*(H-40)},z=y(0),h='<line x1="6" x2="334" y1="'+z.toFixed(1)+'" y2="'+z.toFixed(1)+'" stroke="var(--line)"/>';
+ V.forEach(function(x,i){var cx=10+(i+.5)*(W-20)/n,yy=y(x),c=x<0?"var(--dn)":col;
+  h+='<rect x="'+(cx-bw/2).toFixed(1)+'" y="'+Math.min(yy,z).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+Math.max(1,Math.abs(yy-z)).toFixed(1)+'" rx="2" fill="'+c+'"/>'+
+  '<text x="'+cx.toFixed(1)+'" y="'+(x<0?yy+11:yy-4).toFixed(1)+'" font-size="9.5" text-anchor="middle" fill="var(--fg,currentColor)">'+f(x)+'</text>'+
+  '<text x="'+cx.toFixed(1)+'" y="'+(H-4)+'" font-size="10" text-anchor="middle" fill="var(--mut)">'+L[i]+'</text>'});
+ return'<svg viewBox="0 0 340 120" role="img">'+h+'</svg>'}
+function yoy(V){var n=V.length;if(n<2||!V[n-2])return"";var c=(V[n-1]/Math.abs(V[n-2])-(V[n-2]>0?1:-1))*100;if(V[n-2]<0)c=(V[n-1]-V[n-2])/Math.abs(V[n-2])*100;return'<span class="'+cls(c)+'">'+pct(c)+'</span> <small class="mut">sull\'anno</small>'}
+function kpis(s){
+ var man=isMan(s),K=$("dkc"),G=$("dgc");G.style.display="none";K.style.display=man?"none":"";if(man)return;
+ if(K.getAttribute("data-s")===s&&K.getAttribute("data-ok"))return;
+ K.setAttribute("data-s",s);K.removeAttribute("data-ok");K.innerHTML='<h2>Fondamentali del titolo</h2><small class="mut">Caricamento…</small>';
+ if(!REAL){K.innerHTML='<h2>Fondamentali del titolo</h2><small class="mut">Richiedono i dati di Yahoo</small>';return}
+ fundGet(s).then(function(D){return fetchSeries(s,"5A").catch(function(){return{p:[]}}).then(function(px){return[D,px.p]})}).then(function(r){
+  if(dv.s!==s)return;var D=r[0],PX=r[1],last=function(t){var a=D[t];return a&&a.length?a[a.length-1].v:null},yr=function(x){return x.d.slice(0,4)},
+   rev=(D.annualTotalRevenue||[]).slice(-5),ni=(D.annualNetIncome||[]).slice(-5),eps=(D.annualDilutedEPS||[]).slice(-5),ocf=(D.annualOperatingCashFlow||[]).slice(-5),fcf=(D.annualFreeCashFlow||[]).slice(-5);
+  if(!rev.length&&!eps.length&&!fcf.length&&last("trailingPeRatio")===null){K.innerHTML='<h2>Fondamentali del titolo</h2><small class="mut">Dati di bilancio non disponibili per questo strumento (es. ETF o fondi).</small>';K.setAttribute("data-ok","1");return}
+  // P/E a fine anno = prezzo alla data di bilancio / EPS diluito
+  var pe=[];eps.forEach(function(e){if(!(e.v>0)||!PX.length)return;var t=Date.parse(e.d+"T00:00:00Z")/1000,b=null;
+   for(var i=0;i<PX.length;i++){if(PX[i][0]>=t){b=PX[i][1];break}}if(b===null&&PX.length&&PX[PX.length-1][0]>=t-14*86400)b=PX[PX.length-1][1];if(b!==null)pe.push({d:e.d,v:b/e.v})});
+  var pn=last("trailingPeRatio"),pf=last("trailingForwardPeRatio"),pm=pe.length?pe.reduce(function(a,b){return a+b.v},0)/pe.length:null,mc=last("trailingMarketCap"),
+   F=fcf.length?fcf[fcf.length-1].v:null,R=rev.length?rev[rev.length-1].v:null,fy=mc&&F!==null?F/mc*100:null,fm=R&&F!==null?F/R*100:null,
+   nm=R&&ni.length?ni[ni.length-1].v/R*100:null,debt=last("annualTotalDebt"),cash=last("annualCashCashEquivalentsAndShortTermInvestments"),
+   cg=function(a){var n=a.length;return n>1&&a[n-2].v>0?(a[n-1].v/a[n-2].v-1)*100:null};
+  var tile=function(l,x,c,n){return x===null?"":'<div class="kt"><small>'+l+'</small><b'+(c?' class="'+c+'"':'')+'>'+x+'</b>'+(n?'<small>'+n+'</small>':'')+'</div>'},
+   pc=function(x){return x===null?null:pct(x)};
+  var rel=pn&&pm?(pn/pm-1)*100:null;
+  var h='<h2>Fondamentali del titolo</h2><div class="kg">'+
+   tile("P/E (ultimi 12 mesi)",pn?fmt(pn,1):null,"",rel===null?"":(rel>=0?"+":"−")+fmt(Math.abs(rel),0)+"% vs media storica")+
+   tile("P/E atteso",pf?fmt(pf,1):null)+
+   tile("P/E medio fine anno",pm?fmt(pm,1):null,"",pe.length+" anni")+
+   tile("Rendimento da FCF",fy===null?null:fmt(fy,1)+"%","","FCF / capitalizzazione")+
+   tile("Free cash flow",F===null?null:fB(F),F<0?"dn":"","ultimo anno")+
+   tile("Margine FCF",fm===null?null:fmt(fm,1)+"%")+
+   tile("Crescita ricavi",pc(cg(rev)),cls(cg(rev)||0),"ultimo anno")+
+   tile("Crescita utile per azione",pc(cg(eps)),cls(cg(eps)||0),"ultimo anno")+
+   tile("Margine netto",nm===null?null:fmt(nm,1)+"%")+
+   tile("Debito netto",debt!==null&&cash!==null?fB(debt-cash):null,debt!==null&&cash!==null&&debt-cash<0?"up":"")+'</div>';
+  var ch=function(t,a,f,c){return a.length<2?"":'<h2 style="margin-top:16px">'+t+'</h2><div>'+yoy(a.map(function(x){return x.v}))+'</div>'+bars(a.map(yr),a.map(function(x){return x.v}),f,c)};
+  h+=ch("Free cash flow",fcf,fB,"var(--up)")+ch("Cash flow operativo",ocf,fB,"var(--up)")+ch("Ricavi",rev,fB,"var(--acc,#2a6ef5)")+ch("Utile netto",ni,fB,"var(--up)")+
+   ch("Utile per azione (diluito)",eps,function(x){return fmt(x,2)},"var(--up)")+ch("P/E a fine anno",pe,function(x){return fmt(x,1)},"var(--acc,#2a6ef5)");
+  h+='<small class="mut" style="display:block;margin-top:10px">Fonte: bilanci annuali su Yahoo Finance, nella valuta di bilancio. Non è un consiglio d\'investimento.</small>';
+  K.innerHTML=h;K.setAttribute("data-ok","1")}).catch(function(){if(dv.s===s)K.innerHTML='<h2>Fondamentali del titolo</h2><small class="mut">Dati di bilancio non disponibili al momento.</small>'})}
 function msg(t){return'<text x="170" y="85" text-anchor="middle" fill="var(--mut)" font-size="12">'+t+'</text>'}
 function yj(s,q){return fetch("https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(s)+"?"+q,{headers:{"User-Agent":UA}}).then(function(r){if(!r.ok)throw new Error(s);return r.json()}).then(function(j){var x=j.chart.result[0],c=x.indicators.quote[0].close,p=[];(x.timestamp||[]).forEach(function(t,i){if(c[i]!=null)p.push([t,c[i]])});return{p:p,m:x.meta}})}
 function fetchSeries(s,pd){var k=s+"|"+pd,c=SC[k];if(c&&Date.now()-c.t<60000)return Promise.resolve(c.v);var g=RG[pd],st=0,q;
