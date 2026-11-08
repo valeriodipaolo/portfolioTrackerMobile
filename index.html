@@ -611,12 +611,12 @@ function kpis(s){
   var rel=pn&&pm?(pn/pm-1)*100:null;
   var h='<h2>Fondamentali del titolo</h2><div class="kg">'+
    tile("P/E (ultimi 12 mesi)",pn?fmt(pn,1):null,"",rel===null?"":(rel>=0?"+":"−")+fmt(Math.abs(rel),0)+"% vs media storica")+
-   tile("P/E atteso",pf?fmt(pf,1):null)+tile("Utile per azione (12 mesi)",epsT===null?null:fmt(epsT,2))+
+   tile("P/E atteso",pf?fmt(pf,1):null)+tile("EPS (12 mesi)",epsT===null?null:fmt(epsT,2))+
    tile("Rendimento da FCF",fy===null?null:fmt(fy,1)+"%","","FCF / capitalizzazione")+
    tile("Free cash flow",F===null?null:fB(F),F<0?"dn":"")+
    tile("Margine FCF",fm===null?null:fmt(fm,1)+"%")+
    tile("Crescita ricavi",pc(cg(rev)),cls(cg(rev)||0))+
-   tile("Crescita utile/azione",pc(cg(eps)),cls(cg(eps)||0))+
+   tile("Crescita EPS",pc(cg(eps)),cls(cg(eps)||0))+
    tile("Margine netto",nm===null?null:fmt(nm,1)+"%")+
    (debt!==null&&cash!==null?(debt-cash<=0?tile("Cassa netta",fB(cash-debt),"up"):tile("Debito netto",fB(debt-cash))):"")+'</div>';
   var qd=function(t){return(D["quarterly"+t]||[]).slice(-12)},ql=function(x){var m=+x.d.slice(5,7);return"T"+Math.ceil(m/3)+" "+x.d.slice(2,4)};
@@ -626,7 +626,7 @@ function kpis(s){
     return'<h2 style="margin-top:16px">'+t+'</h2><div>'+(pe?"":yoy(a.map(function(x){return x.v}),lag,tg))+'</div>'+bars(a.map(Q?ql:yr),a.map(function(x){return x.v}),f,c)};
    var g=function(k){return Q?qd(k):(D["annual"+k]||[]).slice(-10)},e2=function(x){return fmt(x,2)},f1=function(x){return fmt(x,1)};
    var o=ch("Free cash flow",g("FreeCashFlow"),fB,"var(--up)")+ch("Cash flow operativo",g("OperatingCashFlow"),fB,"var(--up)")+ch("Ricavi",g("TotalRevenue"),fB,"var(--acc,#2a6ef5)")+ch("Utile netto",g("NetIncome"),fB,"var(--up)")+
-    ch("Utile per azione (EPS)",g("DilutedEPS"),e2,"var(--up)")+ch(Q?"P/E (su EPS ultimi 4 trimestri)":"P/E storico",Q?qpe:pe,f1,"var(--acc,#2a6ef5)",true);
+    ch("EPS",g("DilutedEPS"),e2,"var(--up)")+ch(Q?"P/E (su EPS ultimi 4 trimestri)":"P/E storico",Q?qpe:pe,f1,"var(--acc,#2a6ef5)",true);
    return o||'<small class="mut" style="display:block;margin-top:12px">Dati non disponibili per questo periodo.</small>'};
   h+='<div class="seg" id="fseg" style="margin-top:16px;margin-bottom:0"></div><div id="fch">'+fch(dv.fm||"a")+'</div>';
   K.innerHTML=h;K.setAttribute("data-ok","1");
