@@ -380,10 +380,11 @@ function buildSet(pd){
    var stB=0;if(!intra){var pStart=pd==="CUSTOM"?pdRange(pd).from:pd==="5A"?pdStartFor(pd,AXD.length?AXD[N-1]:today()):earliest();stB=D.length-1;for(var si=0;si<D.length;si++){if(D[si]>=pStart){stB=si;break}}}if(stB>0)stB--; // base 100 = giorno prima di Da, stessa base dei dati sotto: prima il grafico misurava da Da, i dati da giorno prima, e le % non coincidevano
    var r=twrG(D,px,bms,stB,intra?undefined:pStart);
    r.lab=intra?(pd==="1G"?[hm(T[1]),hm(T[T.length-1])]:[dm(D[1]),dm(D[D.length-1])]):[dm(pStart),dm(D[D.length-1])];
-   SET[key]={t:Date.now(),v:r};return r})})}
+   if(intra)r.T=T;SET[key]={t:Date.now(),v:r};return r})})}
 function paintMain(r){
  var cs=state.bms.map(function(k){return BMS[k].col}),Bs=state.bms.map(function(k){return r.B[k]});
- chart(r.I,Bs,cs,r.lab);
+ var wn=r.I.map(function(v,i){if(r.T)return i===0?"Chiusura prec.":wh(r.T[i],state.pd);var d=r.D[(r.s0||0)+i];return d?dmy(d):""});wn.names=state.bms.map(function(k){return BMS[k].n});
+ chart(r.I,Bs,cs,r.lab,wn);
  var g=function(c,t,a){var x=a.length>1?a[a.length-1]-100:null;return'<span style="--c:'+c+'">'+esc(t)+' <b class="'+(x===null?"z":cls(x))+'">'+(x===null?"–":pct(x))+'</b></span>'};
  var IL=r.I.slice();if(IL.length>1&&typeof PP==="number")IL[IL.length-1]=100+PP;
  document.getElementById("lg").innerHTML=g("var(--pf)","Portafoglio",IL)+state.bms.map(function(k,i){return g(cs[i],BMS[k].n,Bs[i])}).join("");
@@ -433,7 +434,7 @@ function render(){
  document.getElementById("list").innerHTML=listHtml(rows,true)||'<p class="note">Nessuna posizione. Aggiungi la prima con il pulsante qui sotto.</p>';
  mainChart();
 }
-function chart(a,Bs,cs,lab){
+function chart(a,Bs,cs,lab,when){
  var svg=document.getElementById("ch");
  if(a.length<2){svg.innerHTML=msg("Servono almeno due punti dati");return}
  var W=340,H=190,L=8,R=8,T=10,B=22,all=[100].concat(a);
@@ -448,7 +449,20 @@ function chart(a,Bs,cs,lab){
  Bs.forEach(function(b,k){h+='<path d="'+path(b)+'" fill="none" stroke="'+cs[k]+'" stroke-width="2" stroke-linejoin="round"/>'});
  h+='<path d="'+path(a)+'" fill="none" stroke="var(--pf)" stroke-width="2.5" stroke-linejoin="round"/><text x="'+L+'" y="'+(Y(100)-4)+'" font-size="10" fill="var(--mut)">100</text>';
  if(lab&&lab[0])h+='<text x="'+L+'" y="'+(H-6)+'" font-size="10" fill="var(--mut)">'+lab[0]+'</text><text x="'+(W-R)+'" y="'+(H-6)+'" font-size="10" text-anchor="end" fill="var(--mut)">'+lab[1]+'</text>';
- svg.innerHTML=h}
+ svg.innerHTML=h;
+ if(when){var nm=when.names||[],pc=function(x){return(x>=100?"+":"−")+fmt(Math.abs(x-100),2)+"%"};
+  scrub(svg,a.map(function(v,i){return{x:X(i),d:[{y:Y(v),c:"var(--pf)"}].concat(Bs.map(function(b,k){return{y:Y(b[i]),c:cs[k]}})),
+   t:[{s:when[i]||""},{s:"Portafoglio "+pc(v),c:"var(--pf)"}].concat(Bs.map(function(b,k){return{s:(nm[k]||"")+" "+pc(b[i]),c:cs[k]}}))}}))}}
+function scrubShow(svg,p){var o=svg.querySelector(".scg");if(o)o.remove();var vb=svg.viewBox.baseVal,W=vb.width,H=vb.height,L=p.t,w=Math.max.apply(0,L.map(function(s){return s.s.length}))*5.4+14,h=L.length*13+7,tx=Math.min(Math.max(p.x-w/2,2),W-w-2).toFixed(1),x=p.x.toFixed(1);
+ var g='<g class="scg" pointer-events="none"><line x1="'+x+'" x2="'+x+'" y1="3" y2="'+(H-18)+'" stroke="var(--mut)" stroke-dasharray="3 3"/>'+p.d.map(function(d){return'<circle cx="'+x+'" cy="'+d.y.toFixed(1)+'" r="4" fill="'+d.c+'" stroke="var(--surf)" stroke-width="1.5"/>'}).join("")+
+  '<rect x="'+tx+'" y="2" width="'+w.toFixed(1)+'" height="'+h+'" rx="5" fill="var(--surf)" stroke="var(--line)"/>'+
+  L.map(function(s,i){return'<text x="'+(+tx+7)+'" y="'+(13+i*13)+'" font-size="10" font-weight="'+(i?600:400)+'" fill="'+(s.c||"var(--mut)")+'">'+esc(s.s)+'</text>'}).join("")+'</g>';
+ svg.insertAdjacentHTML("beforeend",g)}
+function scrub(svg,pts){svg._pts=pts;if(svg._sc)return;svg._sc=1;svg.style.touchAction="pan-y";
+ var go=function(e){var P=svg._pts;if(!P||!P.length)return;var r=svg.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*svg.viewBox.baseVal.width,b=0,bd=1e9;for(var i=0;i<P.length;i++){var d=Math.abs(P[i].x-x);if(d<bd){bd=d;b=i}}scrubShow(svg,P[b])};
+ svg.addEventListener("pointerdown",function(e){if(svg.setPointerCapture)try{svg.setPointerCapture(e.pointerId)}catch(x){}go(e)});
+ svg.addEventListener("pointermove",function(e){if(e.pointerType==="touch"||e.buttons)go(e)})}
+function wh(t,pd){var d=new Date(t*1000),z=function(n){return String(n).padStart(2,"0")},dd=z(d.getDate())+"/"+z(d.getMonth()+1),hh=z(d.getHours())+":"+z(d.getMinutes());return pd==="1G"?hh:pd==="5G"?dd+" "+hh:dd+"/"+d.getFullYear()}
 function chips(id,items,cur,fn,af){
  var el=document.getElementById(id);el.innerHTML="";
  items.forEach(function(it){var b=document.createElement("button");b.className="chip";b.textContent=it[1];b.setAttribute("aria-pressed",it[0]===cur);if(it[2]){b.disabled=true;b.setAttribute("aria-disabled","true")}b.onclick=function(){fn(it[0]);save();(af||draw)()};el.appendChild(b)})}
@@ -668,6 +682,7 @@ function paintD(v,s,pd){
  h+='<text x="'+(ex+4)+'" y="'+(Y(dmx)+3).toFixed(1)+'" font-size="10" fill="var(--mut)">'+fmt(dmx,2)+'</text><text x="'+(ex+4)+'" y="'+(Y(dmn)+3).toFixed(1)+'" font-size="10" fill="var(--mut)">'+fmt(dmn,2)+'</text>'+
   '<text x="'+L+'" y="'+(H-4)+'" font-size="10" fill="var(--mut)">'+lab(t0,pd)+'</text><text x="'+ex+'" y="'+(H-4)+'" font-size="10" text-anchor="end" fill="var(--mut)">'+lab(t1,pd)+'</text>';
  h+='<text x="'+(L+2)+'" y="'+(Number(yb)-4)+'" font-size="10" fill="var(--mut)">'+fmt(b,2)+'</text>';svg.innerHTML=h;
+ var cs2=(INFO[s]&&INFO[s].cs)||"";scrub(svg,P.map(function(q,i){return{x:xs[i],d:[{y:Y(q[1]),c:col}],t:[{s:wh(q[0],pd)},{s:fmt(q[1],2)+" "+cs2,c:"var(--ink)"},{s:(q[1]>=b?"+":"−")+fmt(Math.abs(q[1]/b-1)*100,2)+"%",c:q[1]>=b?"var(--up)":"var(--dn)"}]}}));
  $("dchg").innerHTML='<span class="pc '+c+'">'+pct((last/b-1)*100)+'</span> <small class="mut">'+(pd==="1G"?"oggi":"nel periodo")+'</small>';}
 function csvNum(x){return String(+x.toFixed(6)).replace(".",",")}
 function toCsv(){return["ticker;data;tipo;quantita;prezzo_eur;nome"].concat(sorted(state.lots).map(function(l){return[l.s,l.d||"",l.k==="s"?"vendita":"acquisto",csvNum(l.q),csvNum(l.c),isMan(l.s)?(state.man[l.s]||""):""].join(";")})).join("\r\n")+"\r\n"}
