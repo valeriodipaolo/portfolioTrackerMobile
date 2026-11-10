@@ -120,7 +120,8 @@ select{font:inherit;font-size:16px;padding:9px;border:1px solid var(--line);bord
 <button class="btn add2" id="addb">+ Aggiungi posizione</button>
 </div>
 <div class="card"><h2>Impostazioni e backup</h2><div class="two"><button class="chip" id="exp">Esporta CSV</button><button class="chip" id="impb">Importa CSV</button></div>
-<label class="chk"><input type="checkbox" id="cashr"><span>Includi la liquidità nei rendimenti</span></label><input type="file" id="imp" accept=".csv,text/csv,text/plain,.txt" hidden></div>
+<label class="chk"><input type="checkbox" id="cashr"><span>Includi la liquidità nei rendimenti</span></label><input type="file" id="imp" accept=".csv,text/csv,text/plain,.txt" hidden>
+<button class="chip" id="diagb" style="margin-top:10px">Diagnostica dati</button><pre id="diagp" hidden style="white-space:pre-wrap;word-break:break-all;font-size:.68rem;margin:10px 0 0;color:var(--mut)"></pre></div>
 </main>
 <div id="detv" class="ov" hidden><div class="ovi">
 <div class="ovh"><button class="back" id="dback">‹ Indietro</button></div>
@@ -219,6 +220,7 @@ function twrG(D,px,bms,st,from){
  }
  return{I:I,B:B,s0:st,D:D};
 }
+var DG={},DW={};
 var REAL=false,YB={SPX:"^GSPC",NDX:"^NDX",MSCI:"IWDA.AS",FTSE:"VWCE.DE"};
 function yf(sym){
  return fetch("https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(sym)+"?range=1y&interval=1d",{headers:{"User-Agent":"Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/124 Mobile Safari/537.36"}}).then(function(r){
@@ -252,6 +254,8 @@ function loadAll(extra){
    ni[s]={nat:cu,cs:SY[r.cur]||r.cur,pct:(cu/pr-1)*100,pe:pr*k*fp,name:r.nm||s,sp:IT[i]||[],base:pr,mkt:r.mk,cc:r.cur}});
   syms.forEach(function(s,i){var r=R[i],ks=Object.keys(r.c).sort();if(r.last)r.c[ks[ks.length-1]]=r.last;nc[s]=toE(al(r.c),r.cur)});
   bk.forEach(function(k,i){var r=R[syms.length+i];nc[k]=toE(al(r.a),r.cur)});
+  DG={};syms.forEach(function(s,i){var r=R[i],ks=Object.keys(r.c).sort();DG[s]={b:ks.slice(-3).map(function(d){return d+" "+r.c[d]}),last:r.last,t:r.mk&&r.mk.t,cc:r.cur}});
+  cl.forEach(function(u,i){var f=F[i],ks=Object.keys(f.c).sort();DG["FX "+u]={b:ks.slice(-3).map(function(d){return d+" "+f.c[d]}),last:f.last}});
   cache=nc;INFO=ni;FXS=FXN;N=ax.length;AXD=ax;REAL=true})}
 function price(s,i){if(isMan(s))return 1;var p=serie(s);return i===N-1&&!REAL?p[i]*(1+(live[s]||0)):p[i]}
 function grp(s){return s.replace(/\B(?=(\d{3})+(?!\d))/g,".")}
@@ -415,6 +419,7 @@ function render(){
    if(!l.d||l.d<=rg.to)qEnd+=sgn*l.q;
    if(l.d&&l.d>=fr&&l.d<=rg.to){netIn+=sgn*l.q*l.c;if(l.k!=="s")buys+=l.q*l.c}});
   if(qEnd<=1e-9&&qStart<=1e-9&&!netIn&&!buys)return;
+  DW[o.s]={fr:fr,s:AXD[sI],e:AXD[eI],ld:i.mkt&&i.mkt.t?dOf(i.mkt.t):null};
   var endP=man?1:(eI<0?0:price(o.s,eI));
   var v=man?qEnd*endP:valConv(qEnd,endP,i.cc);
   var startP=man?1:(sI<0?price(o.s,0):price(o.s,sI));
@@ -703,6 +708,10 @@ $("exp").onclick=function(){
  if(P&&P.Filesystem&&P.Share){
   P.Filesystem.writeFile({path:"portafoglio.csv",data:csv,directory:"CACHE",encoding:"utf8"}).then(function(){return P.Filesystem.getUri({path:"portafoglio.csv",directory:"CACHE"})}).then(function(u){return P.Share.share({title:"Portafoglio",files:[u.uri]})}).catch(function(e){if(!/cancel/i.test(String(e&&e.message||e)))alert("Esportazione non riuscita.")})
  }else{var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="portafoglio.csv";document.body.appendChild(a);a.click();a.remove()}};
+$("diagb").onclick=function(){var p=$("diagp");if(!p.hidden){p.hidden=true;return}
+ var L=["Ora: "+new Date().toISOString()+" (locale "+today()+")","Periodo: "+state.pd+" · ultime date asse: "+AXD.slice(-3).join(", ")];
+ Object.keys(DG).forEach(function(k){var d=DG[k],w=DW[k];L.push("",k+(d.cc?" ["+d.cc+"]":""),"  barre: "+d.b.join(" | "),"  prezzo: "+d.last+(d.t?" · ora ultimo scambio: "+new Date(d.t*1000).toISOString():""));if(w)L.push("  finestra 1G: da "+w.s+" a "+w.e+" (ultima seduta "+w.ld+")")});
+ p.textContent=L.join("\n");p.hidden=false;p.scrollIntoView()};
 $("impb").onclick=function(){$("imp").click()};
 $("imp").onchange=function(){var f=this.files[0];this.value="";if(!f)return;var rd=new FileReader();rd.onload=function(){var x=parseCsv(String(rd.result));
  if(x.err){alert(x.err);return}
