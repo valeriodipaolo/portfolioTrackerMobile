@@ -43,6 +43,9 @@ jobs:
           npx cap add android
           npx cap sync android
           
+          # Icona dell'app personalizzata
+          cp -r android-res/* android/app/src/main/res/
+
           # Copia la tua chiave stabile dentro al modulo app
           cp debug.keystore android/app/debug.keystore
 

@@ -405,16 +405,18 @@ function render(){
  var tv=0,plTot=0,baseTot=0,rows=[];
  state.all.forEach(function(o){
   var i=pi(o.s),man=isMan(o.s),lots=state.lots.filter(function(l){return l.s===o.s});
-  var qStart=0,qEnd=0,netIn=0,buys=0;
+  var qStart=0,qEnd=0,netIn=0,buys=0,fr=rg.from,sI=sIdx,eI=eIdx;
+  // 1G a mercato chiuso: ultima seduta di quel titolo (es. ieri), non il giorno corrente senza variazione
+  if(state.pd==="1G"&&!man&&i.mkt&&i.mkt.t){var ld=dOf(i.mkt.t);if(ld<rg.from){fr=ld;eI=idxAtOrBefore(ld);sI=idxBefore(ld)}}
   lots.forEach(function(l){
    var sgn=l.k==="s"?-1:1;
-   if(!l.d||l.d<rg.from)qStart+=sgn*l.q;
+   if(!l.d||l.d<fr)qStart+=sgn*l.q;
    if(!l.d||l.d<=rg.to)qEnd+=sgn*l.q;
-   if(l.d&&l.d>=rg.from&&l.d<=rg.to){netIn+=sgn*l.q*l.c;if(l.k!=="s")buys+=l.q*l.c}});
+   if(l.d&&l.d>=fr&&l.d<=rg.to){netIn+=sgn*l.q*l.c;if(l.k!=="s")buys+=l.q*l.c}});
   if(qEnd<=1e-9&&qStart<=1e-9&&!netIn&&!buys)return;
-  var endP=man?1:(eIdx<0?0:price(o.s,eIdx));
+  var endP=man?1:(eI<0?0:price(o.s,eI));
   var v=man?qEnd*endP:valConv(qEnd,endP,i.cc);
-  var startP=man?1:(sIdx<0?price(o.s,0):price(o.s,sIdx));
+  var startP=man?1:(sI<0?price(o.s,0):price(o.s,sI));
   var vStartRaw=qStart*startP;
   var vStart=man?vStartRaw:((cur(i.cc||"EUR")==="EUR")?vStartRaw:ceilC(vStartRaw));
   var prof=v-vStart-netIn,base=vStart+buys,tp=base>1e-9?prof/base*100:0;
