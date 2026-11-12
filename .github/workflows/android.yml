@@ -5,7 +5,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: build-apk
@@ -38,11 +38,14 @@ jobs:
           npm init -y
           npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6 @capacitor/filesystem@6 @capacitor/share@6 @capacitor/app@6
           cat > capacitor.config.json <<'EOF'
-          {"appId":"app.portafoglio.personale","appName":"Portafoglio","webDir":"www","plugins":{"CapacitorHttp":{"enabled":true}}}
+          {"appId":"app.portafoglio.personale","appName":"Portafoglio","webDir":"www","plugins":{"CapacitorHttp":{"enabled":true},"CapacitorCookies":{"enabled":true}}}
           EOF
           npx cap add android
           npx cap sync android
           
+          # Permessi per il backup automatico nei Documenti (solo Android vecchi)
+          sed -i 's#</manifest>#    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29"/>\n</manifest>#' android/app/src/main/AndroidManifest.xml
+
           # Icona dell'app personalizzata
           cp -r android-res/* android/app/src/main/res/
 
@@ -116,3 +119,12 @@ jobs:
         with:
           name: portafoglio-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Link fisso per il download (Release "latest")
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk portafoglio.apk
+          gh release view latest >/dev/null 2>&1 || gh release create latest --title "Ultima versione" --notes "APK aggiornato a ogni build."
+          gh release upload latest portafoglio.apk --clobber
+          gh release edit latest --notes "Build ${{ github.run_number }} del $(date -u +'%d/%m/%Y %H:%M') UTC"
