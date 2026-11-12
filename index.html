@@ -32,7 +32,7 @@ svg{width:100%;height:auto;display:block}
 .leg{display:flex;justify-content:space-between;font-size:.85rem;margin-top:8px}
 .leg span::before{content:"";display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle;background:var(--c)}
 .kg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.kt{border:1px solid var(--line);border-radius:10px;padding:8px}.kt small{display:block;color:var(--mut);font-size:.72rem}.kt b{font-size:.95rem;font-weight:600}.kt b.up{color:var(--up)}.kt b.dn{color:var(--dn)}
-.cb{margin-top:10px}.cb div{display:flex;justify-content:space-between;gap:8px;font-size:.88rem}.cb div span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cb i{display:block;height:6px;border-radius:3px;background:var(--pf);margin-top:4px}
+.cb{margin-top:12px}.cb .cl{display:grid;grid-template-columns:minmax(0,1fr) 3.4rem 7rem;gap:8px;align-items:baseline;font-size:.88rem}.cb .cn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cb .cp{text-align:right;font-weight:700;white-space:nowrap}.cb .ca{text-align:right;color:var(--mut);white-space:nowrap;font-size:.82rem}.cb .tk{height:6px;border-radius:3px;background:var(--line);margin-top:5px;overflow:hidden}.cb .tk i{display:block;height:100%;border-radius:3px;background:var(--pf)}
 .tot{display:flex;justify-content:space-between;align-items:baseline}
 .tot b{font-size:1.5rem;font-weight:600}
 .pos{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:8px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
@@ -125,14 +125,14 @@ select{font:inherit;font-size:16px;padding:9px;border:1px solid var(--line);bord
 <div class="card"><h2>Impostazioni e backup</h2><div class="two"><button class="chip" id="exp">Esporta CSV</button><button class="chip" id="impb">Importa CSV</button></div>
 <label class="chk"><input type="checkbox" id="cashr"><span>Includi la liquidità nei rendimenti</span></label><input type="file" id="imp" accept=".csv,text/csv,text/plain,.txt" hidden>
 <small class="mut" id="bkst" style="display:block;margin-top:8px"></small>
-<label><span>Email per i bilanci SEC (titoli USA, storico lungo)</span><input id="secm" type="email" placeholder="facoltativa, resta solo sul telefono" autocomplete="off"></label>
 <button class="chip" id="diagb" style="margin-top:10px">Diagnostica dati</button><pre id="diagp" hidden style="white-space:pre-wrap;word-break:break-all;font-size:.68rem;margin:10px 0 0;color:var(--mut)"></pre></div>
 </main>
 <div id="detv" class="ov" hidden><div class="ovi">
 <div class="ovh"><button class="back" id="dback">‹ Indietro</button></div>
 <div id="dhead"></div>
-<div class="seg ei" id="dpd" role="group" aria-label="Periodo del grafico" style="margin-top:12px"></div>
-<div class="card" id="dchc"><div class="seg" id="dbm" style="margin:0 0 8px"></div><div id="dchg"></div><svg id="dch" viewBox="0 0 340 170" role="img" aria-label="Andamento del prezzo del titolo"></svg></div>
+<div class="row" id="dbm" role="group" aria-label="Benchmark" style="margin-top:4px"></div>
+<div class="seg ei" id="dpd" role="group" aria-label="Periodo del grafico" style="margin-top:8px"></div><div id="dpc" hidden style="display:flex;gap:8px;align-items:center;margin:8px 0"><label style="margin:0">Da <input type="date" id="dpf"></label><label style="margin:0">A <input type="date" id="dpt"></label></div>
+<div class="card" id="dchc"><div id="dchg"></div><svg id="dch" viewBox="0 0 340 170" role="img" aria-label="Andamento del prezzo del titolo"></svg></div>
 <div class="card" id="dkc"></div>
 <div class="card" id="dgc"></div>
 <div class="card" id="dgrc"><label style="margin-top:0"><span>Gruppo</span><select id="dgrp"></select></label></div>
@@ -166,10 +166,10 @@ var ANCH={AAPL:230,MSFT:420,NVDA:140,"VWCE.DE":130,"IWDA.AS":105,TSLA:250};
 var N=253,state={lots:[],pos:[],bms:["SPX"],pd:"6M"};
 try{var sv=JSON.parse(localStorage.getItem("pf1")||"null");if(sv&&(sv.pos||sv.lots))state=sv}catch(e){}
 if(!state.bms)state.bms=[state.bm||"SPX"];if(typeof state.pd!=="string"||PERS.indexOf(state.pd)<0)state.pd="6M";if(!state.pdFrom||!state.pdTo){var _d=new Date();_d.setMonth(_d.getMonth()-1);state.pdFrom=state.pdFrom||_d.toISOString().slice(0,10);state.pdTo=state.pdTo||today();}
-state.sort=state.sort||"m";state.order=state.order||[];state.man=state.man||{};state.groups=state.groups||[];state.gmap=state.gmap||{};state.layout=state.layout||"f";state.coll=state.coll||{};state.watch=state.watch||[];state.cmode=state.cmode||"t";state.secMail=state.secMail||"";
+state.sort=state.sort||"m";state.order=state.order||[];state.man=state.man||{};state.groups=state.groups||[];state.gmap=state.gmap||{};state.layout=state.layout||"f";state.coll=state.coll||{};state.watch=state.watch||[];state.cmode=state.cmode||"t";
 if(!state.lots)state.lots=(state.pos||[]).map(function(o){return{s:o.s,d:"",q:o.q,c:o.c}});
 agg();
-function save(){SET={};try{localStorage.setItem("pf1",JSON.stringify({lots:state.lots,bms:state.bms,pd:state.pd,pdFrom:state.pdFrom,pdTo:state.pdTo,sort:state.sort,order:state.order,groups:state.groups,gmap:state.gmap,layout:state.layout,coll:state.coll,man:state.man,cashR:state.cashR,watch:state.watch,cmode:state.cmode,secMail:state.secMail}))}catch(e){}bkup()}
+function save(){SET={};try{localStorage.setItem("pf1",JSON.stringify({lots:state.lots,bms:state.bms,pd:state.pd,pdFrom:state.pdFrom,pdTo:state.pdTo,sort:state.sort,order:state.order,groups:state.groups,gmap:state.gmap,layout:state.layout,coll:state.coll,man:state.man,cashR:state.cashR,watch:state.watch,cmode:state.cmode}))}catch(e){}bkup()}
 function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;var t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 function gauss(r){return Math.sqrt(-2*Math.log(r()+1e-9))*Math.cos(6.2832*r())}
 function hash(s){var h=7;for(var i=0;i<s.length;i++)h=Math.imul(h,31)+s.charCodeAt(i)|0;return h}
@@ -233,7 +233,7 @@ function comp(){
  var L=Object.keys(T).map(function(k){return[k,T[k]]}).sort(function(a,b){return b[1]-a[1]});
  if(m==="t"&&L.length>8){var o=L.slice(7).reduce(function(a,b){return a+b[1]},0);L=L.slice(0,7);L.push(["Altri "+(Object.keys(T).length-7)+" titoli",o])}
  chips("cseg",[["t","Titoli"],["g","Gruppi"],["v","Valute"]],m,function(x){state.cmode=x;save()},comp);
- $("comp").innerHTML=tot>0?L.map(function(x){var p=x[1]/tot*100;return'<div class="cb"><div><span>'+esc(x[0])+'</span><b>'+fmt(p,1)+'% <small class="mut">'+eur(x[1])+'</small></b></div><i style="width:'+Math.max(1,p).toFixed(1)+'%"></i></div>'}).join(""):'<p class="note">Nessuna posizione.</p>'}
+ $("comp").innerHTML=tot>0?L.map(function(x){var p=x[1]/tot*100;return'<div class="cb"><div class="cl"><span class="cn" title="'+esc(x[0])+'">'+esc(x[0])+'</span><span class="cp">'+fmt(p,1)+'%</span><span class="ca">'+eur(x[1])+'</span></div><div class="tk"><i style="width:'+Math.max(1,p).toFixed(1)+'%"></i></div></div>'}).join(""):'<p class="note">Nessuna posizione.</p>'}
 function wrender(){
  state.watch=state.watch.filter(function(s){return !state.pos.some(function(p){return p.s===s})});
  $("wlist").innerHTML=state.watch.length?state.watch.map(function(s){var i=pi(s),c=cls(i.pct);
@@ -595,7 +595,7 @@ $("dback").onclick=function(){closeL("detv")};
 $("dwbuy").onclick=function(){ov("buy",dv.s)};
 $("dwrm").onclick=function(){state.watch=state.watch.filter(function(x){return x!==dv.s});save();closeL("detv");render()};
 $("wlist").onclick=function(e){var r=e.target.closest(".pos");if(r)openDetail(r.getAttribute("data-s"))};
-$("secm").value=state.secMail;$("secm").onchange=function(){state.secMail=this.value.trim();FUN={};$("dkc").removeAttribute("data-s");save()};bkshow();
+bkshow();
 (function(){var P=window.Capacitor&&window.Capacitor.Plugins,A=P&&P.App;if(A&&A.addListener)A.addListener("backButton",function(){if(!$("addv").hidden)closeL("addv");else if(!$("detv").hidden)closeL("detv");else if(A.exitApp)A.exitApp()})})();
 $("dbuy").onclick=function(){ov("buy",dv.s)};
 $("dsell").onclick=function(){ov("sell",dv.s)};
@@ -618,7 +618,13 @@ function renderDetail(){
  var gs=$("dgrp"),sg=state.groups.map(function(g){return g.id+g.n}).join("|");if(dv.gs!==sg||dv.g2!==s){gs.innerHTML='<option value="">Nessun gruppo</option>'+state.groups.map(function(g){return'<option value="'+g.id+'">'+esc(g.n)+'</option>'}).join("")+'<option value="__new">+ Nuovo gruppo…</option>';dv.gs=sg;dv.g2=s}gs.value=gid(s);
  var ix=state.lots.map(function(l,j){return{l:l,j:j}}).filter(function(x){return x.l.s===s}).sort(function(a,b){return(b.l.d||"").localeCompare(a.l.d||"")||b.j-a.j});
  $("dops").innerHTML=ix.map(function(x){var l=x.l;return'<div class="op" data-i="'+x.j+'"><div><b>'+(l.k==="s"?(man?"Prelievo":"Vendita"):(man?"Versamento":"Acquisto"))+'</b><small>'+(l.d?dmy(l.d):"Data non indicata")+(ne&&F?" · cambio "+r4(rateAt(u,l.d||"0000-00-00",F)):"")+'</small></div>'+(man?'<div></div><div class="r">'+eur(l.q)+'</div>':'<div class="r">x'+qf(l.q)+'</div><div class="r">'+eur(l.c)+(ne&&F?'<small>'+fmt(l.c/rateAt(u,l.d||"0000-00-00",F)/k,2)+' '+i.cs+'</small>':'')+'</div>')+'</div>'}).join("");
- chips("dpd",PERS.map(function(x){return[x,x]}),dv.pd,function(x){dv.pd=x;dv.k=""},renderDetail);
+ chips("dpd",PERS.map(function(x){return[x,PLBL[x]||x]}),dv.pd,function(x){dv.pd=x;dv.k=""},renderDetail);
+ dv.bms=dv.bms||[];var dbe=$("dbm"),bk=Object.keys(BMS);dbe.innerHTML="";dbe.style.display=man?"none":"";
+ bk.forEach(function(k){var b=document.createElement("button"),on=dv.bms.indexOf(k)>=0;b.className="chip";b.setAttribute("aria-pressed",on);b.innerHTML='<i class="bd" style="background:'+BMS[k].col+'"></i>'+esc(BMS[k].n);
+  b.onclick=function(){var i=dv.bms.indexOf(k);if(i>=0)dv.bms.splice(i,1);else dv.bms.push(k);dv.bms.sort(function(a,b){return bk.indexOf(a)-bk.indexOf(b)});dv.k="";renderDetail()};dbe.appendChild(b)});
+ if(!dv.pf){dv.pf=state.pdFrom;dv.pt=state.pdTo}
+ var dpc=$("dpc");dpc.style.display=dv.pd==="CUSTOM"&&!man?"flex":"none";$("dpf").max=$("dpt").max=today();$("dpf").value=dv.pf||"";$("dpt").value=dv.pt||"";
+ $("dpf").onchange=function(){if(this.value){dv.pf=this.value;if(dv.pt&&dv.pf>dv.pt)dv.pt=dv.pf;dv.k="";renderDetail()}};$("dpt").onchange=function(){if(this.value){dv.pt=this.value;if(dv.pf&&dv.pt<dv.pf)dv.pf=dv.pt;dv.k="";renderDetail()}};
  $("dpd").style.display=man?"none":"";$("dchc").style.display=man?"none":"";$("dbuy").textContent=man?"Aggiungi importo":"Aggiungi acquisto";$("dsell").textContent=man?"Preleva importo":"Registra vendita";
  kpis(s);
  if(!man)dchart()}
@@ -676,9 +682,9 @@ function secParse(j,sp){var G=(j.facts||{})["us-gaap"]||{};
   annualOperatingIncome:pick(["OperatingIncomeLoss"],"USD"),annualStockholdersEquity:pick(["StockholdersEquity","StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest"],"USD",1),
   annualDilutedAverageShares:pick(["WeightedAverageNumberOfDilutedSharesOutstanding"],"shares",0,1)}}
 function secGet(s,sp){
- if(!state.secMail||s.indexOf(".")>=0||!INFO[s]||INFO[s].cc!=="USD")return Promise.resolve(null);
+ SECERR="";if(s.indexOf(".")>=0||!INFO[s]||INFO[s].cc!=="USD")return Promise.resolve(null);
  var ck="pf_sec_"+s;try{var c=JSON.parse(localStorage.getItem(ck)||"null");if(c&&Date.now()-c.t<864e5)return Promise.resolve(c.d)}catch(e){}
- var H={headers:{"User-Agent":"PortafoglioApp/1.0 "+state.secMail,"Accept":"application/json"}},M={};try{M=JSON.parse(localStorage.getItem("pf_cik")||"{}")}catch(e){}
+ var H={headers:{"User-Agent":"PortafoglioApp/1.0","Accept":"application/json"}},M={};try{M=JSON.parse(localStorage.getItem("pf_cik")||"{}")}catch(e){}
  var cik=M[s]?Promise.resolve(M[s]):fetch("https://www.sec.gov/files/company_tickers.json",H).then(function(r){if(!r.ok)throw new Error("sec"+r.status);return r.json()}).then(function(j){
    var f=null;Object.keys(j).forEach(function(k){if(j[k].ticker===s)f=j[k].cik_str});if(!f)throw new Error("cik");M[s]=("0000000000"+f).slice(-10);try{localStorage.setItem("pf_cik",JSON.stringify(M))}catch(e){}return M[s]});
  return cik.then(function(k){return fetch("https://data.sec.gov/api/xbrl/companyfacts/CIK"+k+".json",H)}).then(function(r){if(!r.ok)throw new Error("sec"+r.status);return r.json()}).then(function(j){
@@ -748,33 +754,35 @@ function kpis(s){
     (Q?"":ch("Margine operativo",opm,fp,B,true)+ch("Dividendo per azione",dps,e2,U)+ch("Azioni in circolazione",sh,fB,B));
    return o||'<small class="mut" style="display:block;margin-top:12px">Dati non disponibili per questo periodo.</small>'};
   h+='<div class="seg" id="fseg" style="margin-top:16px;margin-bottom:0"></div><div id="fch">'+fch(dv.fm||"a")+'</div>';
+  if(SECERR&&INFO[s]&&INFO[s].cc==="USD"&&s.indexOf(".")<0)h+='<small class="mut" style="display:block;margin-top:12px">Storico lungo non disponibile: '+esc(SECERR)+'.</small>';
   K.innerHTML=h;K.setAttribute("data-ok","1");
   earnGet(s).then(function(t){var e=$("fearn");if(!t||!e||dv.s!==s)return;var d=new Date(t*1000);e.querySelector("b").textContent=z2(d.getDate())+"/"+z2(d.getMonth()+1)+"/"+d.getFullYear();e.hidden=false});
   var sel=function(){chips("fseg",[["a","Anno su anno"],["q","Trimestre su trimestre"]],dv.fm||"a",function(x){dv.fm=x},function(){$("fch").innerHTML=fch(dv.fm||"a");sel()})};sel()}).catch(function(){if(dv.s===s)K.innerHTML=HD+'<small class="mut">Dati di bilancio non disponibili al momento.</small>'})}
 function msg(t){return'<text x="170" y="85" text-anchor="middle" fill="var(--mut)" font-size="12">'+t+'</text>'}
 function yj(s,q){return fetch("https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(s)+"?"+q,{headers:{"User-Agent":UA}}).then(function(r){if(!r.ok)throw new Error(s);return r.json()}).then(function(j){var x=j.chart.result[0],c=x.indicators.quote[0].close,p=[];(x.timestamp||[]).forEach(function(t,i){if(c[i]!=null)p.push([t,c[i]])});return{p:p,m:x.meta}})}
-function fetchSeries(s,pd){var k=s+"|"+pd,c=SC[k];if(c&&Date.now()-c.t<60000)return Promise.resolve(c.v);var g=RG[pd],st=0,q;
- if(g.m||g.y){var d=new Date();d.setUTCHours(0,0,0,0);if(g.y)d=new Date(Date.UTC(d.getUTCFullYear(),0,1));else d.setUTCMonth(d.getUTCMonth()-g.m);st=Math.floor(d.getTime()/1000);q="period1="+(st-9*86400)+"&period2="+(Math.floor(Date.now()/1000)+86400)+"&interval="+g.i}else q="range="+g.r+"&interval="+g.i;
+function fetchSeries(s,pd,cr){var k=s+"|"+pd+(pd==="CUSTOM"&&cr?"|"+cr.f+"|"+cr.t:""),c=SC[k];if(c&&Date.now()-c.t<60000)return Promise.resolve(c.v);var g=RG[pd]||{},st=0,q,en=0;
+ if(pd==="CUSTOM"&&cr){st=Math.floor(Date.parse(cr.f+"T00:00:00Z")/1000);en=Math.floor(Date.parse(cr.t+"T00:00:00Z")/1000)+86400;q="period1="+(st-9*86400)+"&period2="+en+"&interval=1d"}
+ else if(g.m||g.y){var d=new Date();d.setUTCHours(0,0,0,0);if(g.y)d=new Date(Date.UTC(d.getUTCFullYear(),0,1));else d.setUTCMonth(d.getUTCMonth()-g.m);st=Math.floor(d.getTime()/1000);q="period1="+(st-9*86400)+"&period2="+(Math.floor(Date.now()/1000)+86400)+"&interval="+g.i}else q="range="+g.r+"&interval="+g.i;
  return yj(s,q).then(function(a){
-  var pts=st?a.p.filter(function(x){return x[0]>=st}):a.p,pre=st?a.p.filter(function(x){return x[0]<st}):[],base=pre.length?pre[pre.length-1][1]:(pts[0]||[0,0])[1];
+  var pts=st?a.p.filter(function(x){return x[0]>=st&&(!en||x[0]<en)}):a.p,pre=st?a.p.filter(function(x){return x[0]<st}):[],base=pre.length?pre[pre.length-1][1]:(pts[0]||[0,0])[1];
   if(pd==="1G")base=(INFO[s]&&INFO[s].base)||a.m.chartPreviousClose||base;
   var fin=function(b){var v={p:pts,base:b,cur:a.m.currency,ses:a.m.currentTradingPeriod&&a.m.currentTradingPeriod.regular};SC[k]={t:Date.now(),v:v};return v};
   if((pd==="1M"||pd==="5G")&&pts.length){var s2=pd==="1M"?st:Math.floor(Date.parse(dOf(pts[0][0])+"T00:00:00Z")/1000);return yj(s,"period1="+(s2-9*86400)+"&period2="+s2+"&interval=1d").then(function(z){return fin(z.p.length?z.p[z.p.length-1][1]:base)}).catch(function(){return fin(base)})}
   return fin(base)})}
 function dchart(){
- var s=dv.s,pd=dv.pd,bm=dv.bm||"",k=s+"|"+pd+"|"+bm,svg=$("dch");
- chips("dbm",[["","Titolo"],["SPX","S&P"],["NDX","Nasdaq"],["MSCI","MSCI"],["FTSE","FTSE"]],bm,function(x){dv.bm=x;dv.k=""},dchart);
+ var s=dv.s,pd=dv.pd,bl=(dv.bms||[]).slice(),cr=pd==="CUSTOM"?{f:dv.pf,t:dv.pt}:null,k=s+"|"+pd+"|"+bl.join(",")+(cr?"|"+cr.f+"|"+cr.t:""),svg=$("dch");
  if(!REAL){svg.innerHTML=msg("Il grafico richiede i dati di Yahoo");$("dchg").innerHTML="";return}
+ if(cr&&!(cr.f&&cr.t)){svg.innerHTML=msg("Scegli le date");return}
  if(dv.k!==k)svg.innerHTML=msg("Caricamento…");
- Promise.all([fetchSeries(s,pd),bm?fetchSeries(YB[bm],pd).catch(function(){return null}):null]).then(function(r){if(dv.s!==s||dv.pd!==pd||(dv.bm||"")!==bm||$("detv").hidden)return;dv.k=k;paintD(r[0],s,pd,r[1],bm)}).catch(function(){if(dv.s===s&&dv.pd===pd)svg.innerHTML=msg("Dati non disponibili")})}
+ Promise.all([fetchSeries(s,pd,cr)].concat(bl.map(function(x){return fetchSeries(YB[x],pd,cr).catch(function(){return null})}))).then(function(r){if(dv.s!==s||dv.pd!==pd||(dv.bms||[]).join(",")!==bl.join(",")||$("detv").hidden)return;dv.k=k;paintD(r[0],s,pd,r.slice(1).map(function(v,i){return v?{v:v,k:bl[i]}:null}).filter(Boolean))}).catch(function(){if(dv.s===s&&dv.pd===pd)svg.innerHTML=msg("Dati non disponibili")})}
 function lab(t,pd){var d=new Date(t*1000),z=function(n){return String(n).padStart(2,"0")};return pd==="1G"?z(d.getHours())+":"+z(d.getMinutes()):(pd==="1M"||pd==="6M"||pd==="5G"||pd==="YTD"?z(d.getDate())+"/"+z(d.getMonth()+1):z(d.getMonth()+1)+"/"+d.getFullYear())}
-function paintD(v,s,pd,bv,bm){
+function paintD(v,s,pd,BL){
  var P=v.p,svg=$("dch");if(P.length<2){svg.innerHTML=msg("Dati non disponibili");return}
  var W=340,H=170,L=6,R=46,T=10,B=20,t0=P[0][0],t1=P[P.length-1][0],last=P[P.length-1][1],b=v.base,mn=b,mx=b;
  P.forEach(function(q){if(q[1]<mn)mn=q[1];if(q[1]>mx)mx=q[1]});
- var dmn=mn,dmx=mx,O=null,ol=null;
- if(bv&&bv.p.length>1&&bv.base>0){var j=0,BP=bv.p;O=P.map(function(q){while(j+1<BP.length&&BP[j+1][0]<=q[0])j++;if(BP[j][0]>q[0])return null;return b*BP[j][1]/bv.base});
-  O.forEach(function(y){if(y===null)return;ol=y;if(y<mn)mn=y;if(y>mx)mx=y});if(ol===null)O=null}
+ var dmn=mn,dmx=mx,OS=[];
+ (BL||[]).forEach(function(z){var bv=z.v;if(!(bv&&bv.p.length>1&&bv.base>0))return;var j=0,BP=bv.p,ol=null,tol=Math.max(1800,3*(BP[BP.length-1][0]-BP[0][0])/(BP.length-1)),O=P.map(function(q){while(j+1<BP.length&&BP[j+1][0]<=q[0])j++;if(BP[j][0]>q[0]||q[0]>BP[BP.length-1][0]+tol)return null;return b*BP[j][1]/bv.base});
+  O.forEach(function(y){if(y===null)return;ol=y;if(y<mn)mn=y;if(y>mx)mx=y});if(ol!==null)OS.push({k:z.k,O:O,ol:ol})});
  var pd2=(mx-mn)*.08||1;mn-=pd2;mx+=pd2;
  var w=pd==="1G"?win(P,v.ses&&v.ses.start,v.ses&&v.ses.end):null;if(w){t0=w[0];t1=w[1]}
  function X(t){return L+(t-t0)/((t1-t0)||1)*(W-L-R)}
@@ -785,13 +793,13 @@ function paintD(v,s,pd,bv,bm){
   '<path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="1.8" stroke-linejoin="round"/>';
 
 
- if(O){var od="",on=false;O.forEach(function(y,i){if(y===null){on=false;return}od+=(on?"L":"M")+xs[i].toFixed(1)+" "+Y(y).toFixed(1);on=true});h+='<path d="'+od+'" fill="none" stroke="'+BMS[bm].col+'" stroke-width="1.6" stroke-linejoin="round"/>'}
+ OS.forEach(function(z){var od="",on=false;z.O.forEach(function(y,i){if(y===null){on=false;return}od+=(on?"L":"M")+xs[i].toFixed(1)+" "+Y(y).toFixed(1);on=true});h+='<path d="'+od+'" fill="none" stroke="'+BMS[z.k].col+'" stroke-width="1.6" stroke-linejoin="round"/>'});
  if(w&&t1-P[P.length-1][0]>300)h+='<circle cx="'+xs[xs.length-1].toFixed(1)+'" cy="'+Y(last).toFixed(1)+'" r="3.5" fill="'+col+'"/>';
  h+='<text x="'+(ex+4)+'" y="'+(Y(dmx)+3).toFixed(1)+'" font-size="10" fill="var(--mut)">'+fmt(dmx,2)+'</text><text x="'+(ex+4)+'" y="'+(Y(dmn)+3).toFixed(1)+'" font-size="10" fill="var(--mut)">'+fmt(dmn,2)+'</text>'+
   '<text x="'+L+'" y="'+(H-4)+'" font-size="10" fill="var(--mut)">'+lab(t0,pd)+'</text><text x="'+ex+'" y="'+(H-4)+'" font-size="10" text-anchor="end" fill="var(--mut)">'+lab(t1,pd)+'</text>';
  h+='<text x="'+(L+2)+'" y="'+(Number(yb)-4)+'" font-size="10" fill="var(--mut)">'+fmt(b,2)+'</text>';svg.innerHTML=h;
- var cs2=(INFO[s]&&INFO[s].cs)||"";scrub(svg,P.map(function(q,i){return{x:xs[i],d:[{y:Y(q[1]),c:col}],t:[{s:wh(q[0],pd)},{s:fmt(q[1],2)+" "+cs2,c:"var(--ink)"},{s:(q[1]>=b?"+":"−")+fmt(Math.abs(q[1]/b-1)*100,2)+"%",c:q[1]>=b?"var(--up)":"var(--dn)"}].concat(O&&O[i]!==null?[{s:BMS[bm].n+" "+(O[i]>=b?"+":"−")+fmt(Math.abs(O[i]/b-1)*100,2)+"%",c:BMS[bm].col}]:[])}}));
- $("dchg").innerHTML='<span class="pc '+c+'">'+pct((last/b-1)*100)+'</span> <small class="mut">'+(pd==="1G"?"oggi":"nel periodo")+'</small>'+(O?' <small style="color:'+BMS[bm].col+';font-weight:600;margin-left:8px">'+esc(BMS[bm].n)+' '+pct((ol/b-1)*100)+'</small>':'');}
+ var cs2=(INFO[s]&&INFO[s].cs)||"";scrub(svg,P.map(function(q,i){return{x:xs[i],d:[{y:Y(q[1]),c:col}],t:[{s:wh(q[0],pd)},{s:fmt(q[1],2)+" "+cs2,c:"var(--ink)"},{s:(q[1]>=b?"+":"−")+fmt(Math.abs(q[1]/b-1)*100,2)+"%",c:q[1]>=b?"var(--up)":"var(--dn)"}].concat(OS.filter(function(z){return z.O[i]!==null}).map(function(z){return{s:BMS[z.k].n+" "+(z.O[i]>=b?"+":"−")+fmt(Math.abs(z.O[i]/b-1)*100,2)+"%",c:BMS[z.k].col}}))}}));
+ $("dchg").innerHTML='<span class="pc '+c+'">'+pct((last/b-1)*100)+'</span> <small class="mut">'+(pd==="1G"?"oggi":"nel periodo")+'</small><div class="leg">'+OS.map(function(z){return'<span style="--c:'+BMS[z.k].col+'">'+esc(BMS[z.k].n)+' <b class="'+cls(z.ol/b-1)+'">'+pct((z.ol/b-1)*100)+'</b></span>'}).join("")+'</div>';}
 function csvNum(x){return String(+x.toFixed(6)).replace(".",",")}
 function toCsv(){return["ticker;data;tipo;quantita;prezzo_eur;nome"].concat(sorted(state.lots).map(function(l){return[l.s,l.d||"",l.k==="s"?"vendita":"acquisto",csvNum(l.q),csvNum(l.c),isMan(l.s)?(state.man[l.s]||""):""].join(";")})).join("\r\n")+"\r\n"}
 function parseCsv(t){
@@ -814,7 +822,7 @@ $("exp").onclick=function(){
 $("diagb").onclick=function(){var p=$("diagp");if(!p.hidden){p.hidden=true;return}
  var L=["Ora: "+new Date().toISOString()+" (locale "+today()+")","Periodo: "+state.pd+" · ultime date asse: "+AXD.slice(-3).join(", ")];
  Object.keys(DG).forEach(function(k){var d=DG[k],w=DW[k];L.push("",k+(d.cc?" ["+d.cc+"]":""),"  barre: "+d.b.join(" | "),"  prezzo: "+d.last+(d.t?" · ora ultimo scambio: "+new Date(d.t*1000).toISOString():""));if(w)L.push("  finestra 1G: da "+w.s+" a "+w.e+" (ultima seduta "+w.ld+")")});
- L.push("","SEC: "+(state.secMail?"email impostata":"email non impostata")+(SECERR?" · ultimo errore: "+SECERR:""));p.textContent=L.join("\n");p.hidden=false;p.scrollIntoView()};
+ L.push("","SEC: "+(SECERR?"ultimo errore: "+SECERR:"nessun errore"));p.textContent=L.join("\n");p.hidden=false;p.scrollIntoView()};
 $("impb").onclick=function(){$("imp").click()};
 $("imp").onchange=function(){var f=this.files[0];this.value="";if(!f)return;var rd=new FileReader();rd.onload=function(){var x=parseCsv(String(rd.result));
  if(x.err){alert(x.err);return}
