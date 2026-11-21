@@ -596,8 +596,8 @@ function trender(){
  $("tsum").textContent=L.length?(G.b.length+" sotto il target · "+G.a.length+" sopra · "+G.n.length+" senza"+(nn?" · "+nn+" entro il 3%":"")):"";
  var row=function(x){var cs=x.i.cs||"",ln;
   if(x.t===null)ln='<span class="z">Prezzo '+fmt(x.p,2)+" "+cs+'</span>';
-  else ln='<span class="z">Prezzo '+fmt(x.p,2)+" "+cs+' · </span><b class="'+(x.g==="a"?"up":"dn")+'">'+(x.d>=0?"+":"−")+fmt(Math.abs(x.d),1)+"% "+(x.g==="a"?"sopra":"sotto")+'</b>'+(Math.abs(x.d)<=3?'<span class="near">vicino</span>':'');
-  return'<div class="tg" data-s="'+esc(x.s)+'"><div style="min-width:0"><div class="nm" data-o="'+esc(x.s)+'">'+esc(x.i.name||x.s)+'</div><small>'+esc(x.s)+'<span class="tag">'+(x.own?"in portafoglio":"osservato")+'</span></small><div class="ln">'+ln+'</div></div>'+
+  else ln='<span class="z">Prezzo '+fmt(x.p,2)+" "+cs+' · </span><b class="'+(x.g==="a"?"up":"dn")+'">'+(x.d>=0?"+":"−")+fmt(Math.abs(x.d),1)+"% "+(x.g==="a"?"sopra":"sotto")+'</b>'+'';
+  return'<div class="tg" data-s="'+esc(x.s)+'"><div style="min-width:0"><div class="nm" data-o="'+esc(x.s)+'">'+esc(x.i.name||x.s)+'</div><small>'+esc(x.s)+'<span class="tag">'+(x.own?"in portafoglio":"osservato")+'</span>'+(x.t!==null&&Math.abs(x.d)<=3?'<span class="near">vicino</span>':'')+'</small><div class="ln">'+ln+'</div></div>'+
    '<label class="ti"><input inputmode="decimal" enterkeyhint="done" autocomplete="off" aria-label="Target price di '+esc(x.s)+'" placeholder="Target" value="'+(x.t===null?"":fmt(x.t,2))+'" data-s="'+esc(x.s)+'"><span>'+esc(cs)+'</span></label></div>'};
  var sec=function(k,ti,nt){var a=G[k];return'<div class="tg-h"><h3>'+ti+'</h3><small>'+a.length+'</small></div>'+(a.length?a.map(row).join(""):'<p class="note" style="margin:4px 0">'+nt+'</p>')};
  $("tlist").innerHTML=L.length?sec("n","Senza target","Tutti i titoli hanno un target.")+sec("a","Prezzo sopra il target","Nessun titolo sopra il target.")+sec("b","Prezzo sotto il target","Nessun titolo sotto il target."):'<p class="note">Nessun titolo in questa vista.</p>'}
