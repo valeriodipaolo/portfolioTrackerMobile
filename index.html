@@ -406,7 +406,7 @@ function buildSet(pd){
   else if(pd==="5A")d.setUTCFullYear(d.getUTCFullYear()-5);else{var e=earliest();d=new Date((e||AXD[0])+"T00:00:00Z")}
   sd=d.toISOString().slice(0,10);var span=(endD.getTime()-d.getTime())/31557600000;
   q="period1="+(Math.floor(d.getTime()/1000)-10*86400)+"&period2="+(Math.floor(endD.getTime()/1000)+86400)+"&interval="+(pd==="CUSTOM"?(span*365>2000?"1mo":span*365>180?"1wk":"1d"):(span>5.5?"1mo":"1wk"))}
- return Promise.all(jobs.map(function(j){return yj(j,q).catch(function(){return{p:[],m:{}}})})).then(function(R){
+ return Promise.all(jobs.map(function(j){return yj(j,q).then(function(a){return intra?a:liveP(a,pd==="CUSTOM"?Math.floor(Date.parse(pdRange().to+"T00:00:00Z")/1000)+86400:0)}).catch(function(){return{p:[],m:{}}})})).then(function(R){
   var cs={};R.forEach(function(r){var u=cur(r.m.currency||"EUR");if(u!=="EUR")cs[u]=1});var cl=Object.keys(cs);
   return Promise.all(cl.map(function(u){return intra?Promise.resolve(null):fxHist(u,prevDay(prevDay(sd))).catch(function(){return null})})).then(function(F){
    var FL={};cl.forEach(function(u,i){FL[u]=F[i]?mkFx(F[i].c):FXS[u]});
@@ -821,11 +821,14 @@ function kpis(s){
   earnGet(s).then(function(t){var e=$("fearn");if(!t||!e||dv.s!==s)return;var d=new Date(t*1000);e.querySelector("b").textContent=z2(d.getDate())+"/"+z2(d.getMonth()+1)+"/"+d.getFullYear();e.hidden=false});
   var sel=function(){chips("fseg",[["a","Anno su anno"],["q","Trimestre su trimestre"]],dv.fm||"a",function(x){dv.fm=x},function(){$("fch").innerHTML=fch(dv.fm||"a");bindBars($("fch"));sel()})};sel()}).catch(function(){if(dv.s===s)K.innerHTML=HD+'<small class="mut">Dati di bilancio non disponibili al momento.</small>'})}
 function msg(t){return'<text x="170" y="85" text-anchor="middle" fill="var(--mut)" font-size="12">'+t+'</text>'}
+// Yahoo a volte non ha ancora la barra giornaliera dell'ultima seduta (es. ETF di Milano): aggiungiamo l'ultimo prezzo di mercato, come fa Yahoo nell'intestazione
+function liveP(a,en){var m=a.m||{},t=m.regularMarketTime,v=m.regularMarketPrice,p=a.p;if(!(t>0&&v>0)||(en&&t>=en))return a;var l=p[p.length-1];
+ if(!l||t>l[0]){if(l&&dOf(l[0])===dOf(t))l[1]=v;else p.push([t,v])}return a}
 function yj(s,q){return fetch("https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(s)+"?"+q,{headers:{"User-Agent":UA}}).then(function(r){if(!r.ok)throw new Error(s);return r.json()}).then(function(j){var x=j.chart.result[0],c=x.indicators.quote[0].close,p=[];(x.timestamp||[]).forEach(function(t,i){if(c[i]!=null)p.push([t,c[i]])});return{p:p,m:x.meta}})}
 function fetchSeries(s,pd,cr){var k=s+"|"+pd+(pd==="CUSTOM"&&cr?"|"+cr.f+"|"+cr.t:""),c=SC[k];if(c&&Date.now()-c.t<60000)return Promise.resolve(c.v);var g=RG[pd]||{},st=0,q,en=0;
  if(pd==="CUSTOM"&&cr){st=Math.floor(Date.parse(cr.f+"T00:00:00Z")/1000);en=Math.floor(Date.parse(cr.t+"T00:00:00Z")/1000)+86400;q="period1="+(st-9*86400)+"&period2="+en+"&interval=1d"}
  else if(g.m||g.y){var d=new Date();d.setUTCHours(0,0,0,0);if(g.y)d=new Date(Date.UTC(d.getUTCFullYear(),0,1));else d.setUTCMonth(d.getUTCMonth()-g.m);st=Math.floor(d.getTime()/1000);q="period1="+(st-9*86400)+"&period2="+(Math.floor(Date.now()/1000)+86400)+"&interval="+g.i}else q="range="+g.r+"&interval="+g.i;
- return yj(s,q).then(function(a){
+ return yj(s,q).then(function(a){if(pd!=="1G"&&pd!=="5G")liveP(a,en);
   var pts=st?a.p.filter(function(x){return x[0]>=st&&(!en||x[0]<en)}):a.p,pre=st?a.p.filter(function(x){return x[0]<st}):[],base=pre.length?pre[pre.length-1][1]:(pts[0]||[0,0])[1];
   if(pd==="1G")base=(INFO[s]&&INFO[s].base)||a.m.chartPreviousClose||base;
   var fin=function(b){var v={p:pts,base:b,cur:a.m.currency,ses:a.m.currentTradingPeriod&&a.m.currentTradingPeriod.regular};SC[k]={t:Date.now(),v:v};return v};
